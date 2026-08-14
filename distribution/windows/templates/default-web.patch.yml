@@ -42,6 +42,13 @@
 - id: deepseek-desktop-web-diagnostics
   name: deepseek-desktop-web-diagnostics
 
+# The hosted vision sidecar is installed with the desktop payload but remains
+# opt-in so the text-only free route stays the default. Enable this row in the
+# profile patch when image input is needed.
+- id: vision-sidecar
+  name: dsh-vision-sidecar
+  disabled: true
+
 - id: llm-deepseek
   disabled: true
 

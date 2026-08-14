@@ -15,6 +15,7 @@
 - `deepseek-desktop-free-fallback`：免费路由在首个输出前遇到限流、超时、服务端或传输错误时，自动切换到备用免费模型；一旦已经产生输出，不会中途换模型。
 - `deepseek-desktop-vision-preflight`：发送图片前读取模型能力；模型明确不支持图片时立即给出可读提示，不把图片静默发送给文本模型。
 - `deepseek-desktop-web-diagnostics`：提供 `http://127.0.0.1:端口/__deepseek_desktop/diagnostics` 本地诊断端点，帮助区分 WebView 本地连接问题与模型请求问题。
+- `dsh-vision-sidecar`：随安装器预装的托管视觉插件，默认保持关闭，不改变免费文本模型；需要图片时可在 profile patch 中启用，默认使用 LLM7.io 的匿名视觉路由。
 
 这些插件不包含 API key，也不代表 DeepSeek 官方；下一次制作安装包时才会将它们复制进 payload。
 

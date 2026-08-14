@@ -15,6 +15,7 @@ The source now includes three preinstalled community plugins (this change does n
 - `deepseek-desktop-free-fallback` switches to a second free model only when the primary route fails before its first output with a transient rate-limit, timeout, server, empty-response, or transport failure. It never changes routes after output has started.
 - `deepseek-desktop-vision-preflight` checks explicit model modality metadata before sending an image and returns a readable error for models that declare no image support.
 - `deepseek-desktop-web-diagnostics` exposes `http://127.0.0.1:<port>/__deepseek_desktop/diagnostics` so WebView loopback failures can be separated from model failures.
+- `dsh-vision-sidecar` is captured into the payload as an npm package but stays disabled by default, preserving the text-only free route. Enable its profile row when image input is needed; the default hosted vision route is LLM7.io's anonymous endpoint.
 
 The plugins contain no API key and are not official DeepSeek components. The next setup build will copy them into the payload.
 

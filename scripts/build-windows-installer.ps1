@@ -49,6 +49,7 @@ function Write-AppManifest([string]$AppRoot) {
     'deepseek-desktop-free-fallback' = 'file:../plugins/deepseek-desktop-free-fallback'
     'deepseek-desktop-vision-preflight' = 'file:../plugins/deepseek-desktop-vision-preflight'
     'deepseek-desktop-web-diagnostics' = 'file:../plugins/deepseek-desktop-web-diagnostics'
+    'dsh-vision-sidecar' = 'file:../plugins/dsh-vision-sidecar'
   }
   $dependencies = @{ '@deepseek-ai/dsh' = $dshVersion }
   foreach ($entry in $pluginDependencies.GetEnumerator()) { $dependencies[$entry.Key] = $entry.Value }
@@ -66,7 +67,7 @@ function Copy-CommonPayload([string]$PayloadRoot) {
   Copy-Item -LiteralPath (Join-Path $distributionRoot 'templates\Launch DeepSeek Desktop.cmd') -Destination $PayloadRoot
   Copy-Item -LiteralPath (Join-Path $distributionRoot 'templates\Uninstall DeepSeek Harness.cmd') -Destination $PayloadRoot
   Copy-Item -LiteralPath (Join-Path $distributionRoot 'templates\default-web.patch.yml') -Destination (Join-Path $PayloadRoot 'defaults\cordis.patch.yml')
-  foreach ($plugin in @('deepseek-desktop-free-fallback', 'deepseek-desktop-vision-preflight', 'deepseek-desktop-web-diagnostics')) {
+  foreach ($plugin in @('deepseek-desktop-free-fallback', 'deepseek-desktop-vision-preflight', 'deepseek-desktop-web-diagnostics', 'dsh-vision-sidecar')) {
     Copy-Item -LiteralPath (Join-Path $distributionRoot "plugins\$plugin") -Destination $pluginRoot -Recurse
   }
   Copy-Item -LiteralPath (Join-Path $repoRoot 'apps\web\public\favicon.svg') -Destination (Join-Path $PayloadRoot 'DeepSeek-Black-Logo.svg')
@@ -110,7 +111,7 @@ function New-Setup([string]$Kind, [bool]$IncludeDependencies) {
     try {
       $env:PATH = "$runtimeRoot;$originalPath"
       Push-Location $appRoot
-      & (Join-Path $runtimeRoot 'npm.cmd') install '--omit=dev' '--no-audit' '--no-fund' '--package-lock=false' '--fetch-retries=2' '--fetch-timeout=120000'
+      & (Join-Path $runtimeRoot 'npm.cmd') install '--omit=dev' '--no-audit' '--no-fund' '--package-lock=false' '--install-links' '--fetch-retries=2' '--fetch-timeout=120000'
       Assert-ExternalSuccess 'npm install'
     } finally {
       Pop-Location
