@@ -29,6 +29,9 @@
 # a selection dialog after the non-official-distribution notice and writes the
 # chosen enabled/disabled state into the user's profile. They never ship an API
 # key and do not claim to be official DeepSeek components.
+- id: deepseek-desktop-plugin-helper
+  name: deepseek-desktop-plugin-helper
+
 - id: deepseek-desktop-free-fallback
   name: deepseek-desktop-free-fallback
   config:
@@ -42,6 +45,24 @@
 
 - id: deepseek-desktop-web-diagnostics
   name: deepseek-desktop-web-diagnostics
+
+# These four community plugins are downloaded by the online installer from
+# pinned npm/GitHub sources. The offline installer keeps the rows disabled.
+- id: dsh-session-export
+  name: dsh-session-export
+  disabled: true
+
+- id: dsh-mic-input
+  name: dsh-mic-input
+  disabled: true
+
+- id: auto-continue
+  name: dsh-client-auto-continue
+  disabled: true
+
+- id: ui-attention-badge
+  name: dsh-web-attention-badge
+  disabled: true
 
 # The hosted vision sidecar is installed with the desktop payload but remains
 # opt-in so the text-only free route stays the default. Enable this row in the

@@ -4,7 +4,7 @@ Build DeepSeek Desktop setup executables for Windows x64.
 
 .DESCRIPTION
 Creates an offline setup with the complete published Harness dependency closure
-and a mirror setup that downloads that closure from the China npm mirror during
+and an online setup that downloads that closure from the China npm mirror during
 installation. Both use a bundled Node runtime and an embedded WebView window.
 ##>
 [CmdletBinding()]
@@ -23,6 +23,36 @@ $nodeSha256 = 'ea3fad0e67a991d8477d8c01344b56e69c676ccb733f065b22436994b1253f86'
 $mirrorRegistry = 'https://registry.npmmirror.com'
 $webViewPackageVersion = '1.0.3856.49'
 $webViewPackageUrl = "https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2/$webViewPackageVersion"
+$networkPluginCatalog = @(
+  [pscustomobject]@{
+    id = 'dsh-session-export'
+    package = 'dsh-session-export'
+    spec = 'https://codeload.github.com/bwndlct/dsh-session-export/tar.gz/eb18389192e36934718877fd7c6eb397f5cf1cd4'
+    title = '会话导出'
+    description = '导出 Markdown/JSON，便于归档与分享。'
+  }
+  [pscustomobject]@{
+    id = 'dsh-mic-input'
+    package = 'dsh-mic-input'
+    spec = 'https://codeload.github.com/QT-Chen/dsh-mic-input/tar.gz/23a0ba5cccc8bc016a8d7e4382ad22aa47d1c3d0'
+    title = '中文语音输入'
+    description = '浏览器语音转写，支持 zh-CN。'
+  }
+  [pscustomobject]@{
+    id = 'auto-continue'
+    package = 'dsh-client-auto-continue@0.3.2'
+    spec = 'dsh-client-auto-continue@0.3.2'
+    title = '自动继续'
+    description = '网络中断后按规则自动发送“继续”。'
+  }
+  [pscustomobject]@{
+    id = 'ui-attention-badge'
+    package = 'dsh-web-attention-badge@0.3.2'
+    spec = 'dsh-web-attention-badge@0.3.2'
+    title = '任务提醒角标'
+    description = '等待确认或完成未读时显示角标。'
+  }
+)
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $distributionRoot = Join-Path $repoRoot 'distribution\windows'
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = Join-Path $distributionRoot 'dist' }
@@ -77,6 +107,7 @@ function Write-AppManifest([string]$AppRoot) {
     'deepseek-desktop-free-fallback' = 'file:../plugins/deepseek-desktop-free-fallback'
     'deepseek-desktop-vision-preflight' = 'file:../plugins/deepseek-desktop-vision-preflight'
     'deepseek-desktop-web-diagnostics' = 'file:../plugins/deepseek-desktop-web-diagnostics'
+    'deepseek-desktop-plugin-helper' = 'file:../plugins/deepseek-desktop-plugin-helper'
     'dsh-vision-sidecar' = 'file:../plugins/dsh-vision-sidecar'
     '@deepseek-ai/dsh-client-ui-model-selection' = 'file:../plugins/dsh-client-ui-model-selection'
   }
@@ -96,7 +127,8 @@ function Copy-CommonPayload([string]$PayloadRoot) {
   Copy-Item -LiteralPath (Join-Path $distributionRoot 'templates\Launch DeepSeek Desktop.cmd') -Destination $PayloadRoot
   Copy-Item -LiteralPath (Join-Path $distributionRoot 'templates\Uninstall DeepSeek Harness.cmd') -Destination $PayloadRoot
   Copy-Item -LiteralPath (Join-Path $distributionRoot 'templates\default-web.patch.yml') -Destination (Join-Path $PayloadRoot 'defaults\cordis.patch.yml')
-  foreach ($plugin in @('deepseek-desktop-free-fallback', 'deepseek-desktop-vision-preflight', 'deepseek-desktop-web-diagnostics', 'dsh-vision-sidecar')) {
+  $networkPluginCatalog | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $PayloadRoot 'defaults\network-plugins.json') -Encoding utf8
+  foreach ($plugin in @('deepseek-desktop-free-fallback', 'deepseek-desktop-vision-preflight', 'deepseek-desktop-web-diagnostics', 'deepseek-desktop-plugin-helper', 'dsh-vision-sidecar')) {
     Copy-Item -LiteralPath (Join-Path $distributionRoot "plugins\$plugin") -Destination $pluginRoot -Recurse
   }
   Copy-EffortSliderPackage $PayloadRoot
@@ -131,7 +163,7 @@ function New-Setup([string]$Kind, [bool]$IncludeDependencies) {
   $appRoot = Join-Path $payloadRoot 'app'
   $runtimeRoot = Join-Path $payloadRoot 'runtime'
   $payloadArchive = Join-Path $workRoot "payload-$Kind.zip"
-  $installerName = if ($Kind -eq 'offline') { "DeepSeek-Desktop-$dshVersion-Windows-x64-Offline-Setup.exe" } else { "DeepSeek-Desktop-$dshVersion-Windows-x64-Setup.exe" }
+  $installerName = if ($Kind -eq 'offline') { "DeepSeek-Desktop-$dshVersion-Windows-x64-Offline-Setup.exe" } else { "DeepSeek-Desktop-$dshVersion-Windows-x64-Online-Setup.exe" }
   $installerPath = Join-Path $outputPath $installerName
   if (Test-Path -LiteralPath $installerPath) { throw "Refusing to overwrite an existing installer: $installerPath" }
   Copy-CommonPayload $payloadRoot
@@ -155,7 +187,7 @@ function New-Setup([string]$Kind, [bool]$IncludeDependencies) {
   Set-Content -LiteralPath (Join-Path $payloadRoot 'VERSION.txt') -Value "DeepSeek Desktop $dshVersion`r`nBundled Node.js $nodeVersion" -Encoding ascii
   Compress-Archive -Path (Join-Path $payloadRoot '*') -DestinationPath $payloadArchive -CompressionLevel Optimal
   $installScript = Join-Path $workRoot "install-$Kind.ps1"
-  $mode = if ($IncludeDependencies) { 'offline' } else { 'mirror' }
+  $mode = if ($IncludeDependencies) { 'offline' } else { 'online' }
   (Get-Content -Raw (Join-Path $distributionRoot 'templates\install.ps1')).Replace("'__INSTALL_MODE__'", "'$mode'") | Set-Content -LiteralPath $installScript -Encoding utf8
   $sedPath = Join-Path $workRoot "installer-$Kind.sed"
   @"
@@ -194,10 +226,7 @@ SourceFiles0=$workRoot\
   & (Join-Path $env:WINDIR 'System32\iexpress.exe') /N /Q $sedPath
   Assert-ExternalSuccess 'IExpress'
   if (!(Test-Path -LiteralPath $installerPath -PathType Leaf)) { throw 'IExpress did not create the setup executable.' }
-  $hashPath = "$installerPath.sha256"
-  $installerHash = Get-Sha256 $installerPath
-  Set-Content -LiteralPath $hashPath -Value "$installerHash  $installerName" -Encoding ascii
-  Get-Item -LiteralPath $installerPath, $hashPath | Select-Object FullName, Length
+  Get-Item -LiteralPath $installerPath | Select-Object FullName, Length
 }
 
 if ([Environment]::Is64BitOperatingSystem -eq $false) { throw 'This installer build targets Windows x64 only.' }
@@ -220,4 +249,4 @@ Assert-ExternalSuccess 'WebView binding download'
 Assert-ExternalSuccess 'WebView binding extraction'
 
 New-Setup 'offline' $true
-New-Setup 'mirror' $false
+New-Setup 'online' $false

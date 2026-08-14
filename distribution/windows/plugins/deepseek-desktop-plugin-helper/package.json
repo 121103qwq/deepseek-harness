@@ -1,0 +1,17 @@
+{
+  "name": "deepseek-desktop-plugin-helper",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "index.mjs",
+  "exports": {
+    ".": "./index.mjs"
+  },
+  "keywords": [
+    "deepseek-desktop",
+    "dsh-plugin",
+    "installer",
+    "diagnostics"
+  ],
+  "license": "MIT"
+}
