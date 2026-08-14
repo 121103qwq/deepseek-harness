@@ -32,6 +32,13 @@
 - id: deepseek-desktop-plugin-helper
   name: deepseek-desktop-plugin-helper
 
+- id: deepseek-desktop-update-sync
+  name: deepseek-desktop-update-sync
+  config:
+    checkInBackground: true
+    allowBackgroundAutoUpdate: false
+    intervalHours: 6
+
 - id: deepseek-desktop-free-fallback
   name: deepseek-desktop-free-fallback
   config:

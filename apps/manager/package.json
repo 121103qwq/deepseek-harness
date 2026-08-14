@@ -1,0 +1,25 @@
+{
+  "name": "@deepseek-ai/dsh-manager",
+  "version": "0.1.0-rc.5",
+  "private": true,
+  "description": "PCL2-style Windows manager and launcher for DeepSeek Harness instances.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json && vite build",
+    "dev": "vite --host 127.0.0.1",
+    "server": "node --enable-source-maps --import tsx/esm src/server.ts",
+    "start": "node --enable-source-maps dist/server.js"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^4.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.0",
+    "@types/react": "~18.3.1",
+    "@types/react-dom": "~18.3.0",
+    "typescript": "^6.0.3",
+    "vite": "^6.0.0"
+  }
+}

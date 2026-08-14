@@ -7,6 +7,7 @@ Add-Type -AssemblyName System.Windows.Forms
 
 $pluginDefinitions = @(
   [pscustomobject]@{ Id = 'deepseek-desktop-plugin-helper'; Title = '桌面插件助手（必需）'; Description = '检查插件安装状态并提供本地诊断接口。'; Default = $true; BuiltIn = $true; Mandatory = $true }
+  [pscustomobject]@{ Id = 'deepseek-desktop-update-sync'; Title = '更新同步助手（内置）'; Description = '后台检查官方上游和社区版本；默认只检查，不自动下载或安装。'; Default = $true; BuiltIn = $true; Mandatory = $true }
   [pscustomobject]@{ Id = 'deepseek-desktop-free-fallback'; Title = '免费模型故障切换'; Description = '免费路线首个输出前失败时尝试备用模型。'; Default = $true }
   [pscustomobject]@{ Id = 'deepseek-desktop-vision-preflight'; Title = '视觉输入预检查'; Description = '发送图片前检查模型是否明确支持视觉输入。'; Default = $true }
   [pscustomobject]@{ Id = 'deepseek-desktop-web-diagnostics'; Title = '本地 Web 诊断'; Description = '提供本地诊断地址，帮助定位 WebView 连接问题。'; Default = $true }
@@ -66,6 +67,18 @@ function Show-PluginSelection {
   $detail.MaximumSize = New-Object System.Drawing.Size(650, 0)
   $detail.AutoSize = $true
   $detail.Location = New-Object System.Drawing.Point(30, 215)
+
+  $checkUpdates = New-Object System.Windows.Forms.CheckBox
+  $checkUpdates.Text = '后台检查官方上游和社区版本（默认开启）'
+  $checkUpdates.AutoSize = $true
+  $checkUpdates.Checked = $true
+  $checkUpdates.Location = New-Object System.Drawing.Point(30, 275)
+
+  $autoUpdates = New-Object System.Windows.Forms.CheckBox
+  $autoUpdates.Text = '允许后台自动下载更新（默认关闭；不会自动安装）'
+  $autoUpdates.AutoSize = $true
+  $autoUpdates.Checked = $false
+  $autoUpdates.Location = New-Object System.Drawing.Point(30, 305)
 
   $install = New-Object System.Windows.Forms.Button
   $install.Text = '立即安装'
@@ -127,11 +140,15 @@ function Show-PluginSelection {
     }
   })
 
-  $dialog.Controls.AddRange(@($title, $notice, $pluginButton, $summary, $detail, $install, $cancel))
+  $dialog.Controls.AddRange(@($title, $notice, $pluginButton, $summary, $detail, $checkUpdates, $autoUpdates, $install, $cancel))
   $dialog.AcceptButton = $install
   $dialog.CancelButton = $cancel
   if ($dialog.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) { return $null }
-  return @($selected)
+  return [pscustomobject]@{
+    PluginIds = [string[]]$selected.ToArray()
+    CheckUpdates = [bool]$checkUpdates.Checked
+    AllowAutoUpdate = [bool]$autoUpdates.Checked
+  }
 }
 
 function Set-PluginEnabled([string]$Text, [string]$Id, [bool]$Enabled) {
@@ -154,6 +171,26 @@ function Apply-PluginSelection([string]$PatchPath, [string[]]$SelectedIds) {
     if ($definition.BuiltIn) { continue }
     $text = Set-PluginEnabled $text $definition.Id ($SelectedIds -contains $definition.Id)
   }
+  [IO.File]::WriteAllText($PatchPath, $text, (New-Object Text.UTF8Encoding($false)))
+}
+
+function Set-UpdateSyncConfig([string]$PatchPath, [bool]$CheckUpdates, [bool]$AllowAutoUpdate) {
+  $text = [IO.File]::ReadAllText($PatchPath, [Text.Encoding]::UTF8)
+  $pattern = "(?ms)^- id: deepseek-desktop-update-sync\r?\n(?:(?!^- id: ).)*"
+  $match = [regex]::Match($text, $pattern)
+  if (!$match.Success) { throw 'Installer profile is missing the update synchronization plugin row.' }
+  $block = $match.Value
+  $checkValue = if ($CheckUpdates) { 'true' } else { 'false' }
+  $autoValue = if ($AllowAutoUpdate) { 'true' } else { 'false' }
+  $block = [regex]::Replace($block, '(?m)^    checkInBackground:\s*(?:true|false)\r?\n', "    checkInBackground: $checkValue`r`n")
+  $block = [regex]::Replace($block, '(?m)^    allowBackgroundAutoUpdate:\s*(?:true|false)\r?\n', "    allowBackgroundAutoUpdate: $autoValue`r`n")
+  if ($block -notmatch '(?m)^    checkInBackground:') {
+    $block = $block -replace '(?m)^(  config:\r?\n)', "`$1    checkInBackground: $checkValue`r`n"
+  }
+  if ($block -notmatch '(?m)^    allowBackgroundAutoUpdate:') {
+    $block = $block -replace '(?m)^(  config:\r?\n)', "`$1    allowBackgroundAutoUpdate: $autoValue`r`n"
+  }
+  $text = $text.Substring(0, $match.Index) + $block + $text.Substring($match.Index + $match.Length)
   [IO.File]::WriteAllText($PatchPath, $text, (New-Object Text.UTF8Encoding($false)))
 }
 
@@ -250,8 +287,9 @@ function Invoke-NpmInstallWithFallback([string]$AppRoot, [string]$RuntimeRoot, $
   throw 'DeepSeek Desktop 网络依赖下载失败：国内镜像和 npm 官方源均不可用。'
 }
 
-$selectedPluginIds = Show-PluginSelection
-if ($null -eq $selectedPluginIds) { exit 0 }
+$selection = Show-PluginSelection
+if ($null -eq $selection) { exit 0 }
+$selectedPluginIds = [string[]]$selection.PluginIds
 
 $installRoot = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Desktop'
 $menuRoot = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\DeepSeek Desktop'
@@ -284,6 +322,7 @@ try {
     Copy-Item -LiteralPath (Join-Path $installRoot 'defaults\cordis.patch.yml') -Destination (Join-Path $profileRoot 'cordis.patch.yml')
   }
   Apply-PluginSelection (Join-Path $profileRoot 'cordis.patch.yml') $selectedPluginIds
+  Set-UpdateSyncConfig (Join-Path $profileRoot 'cordis.patch.yml') $selection.CheckUpdates $selection.AllowAutoUpdate
   if (!(Test-Path -LiteralPath (Join-Path $homeRoot 'settings.yaml'))) {
 @"
 ui-onboarding:
@@ -298,6 +337,11 @@ ui-onboarding:
   $shortcut.WorkingDirectory = $installRoot
   $shortcut.Description = 'Open DeepSeek Desktop'
   $shortcut.Save()
+  $managerShortcut = $shell.CreateShortcut((Join-Path $menuRoot 'DSh Manager.lnk'))
+  $managerShortcut.TargetPath = Join-Path $installRoot 'DSH luncher.exe'
+  $managerShortcut.WorkingDirectory = $installRoot
+  $managerShortcut.Description = 'Open DSh Manager'
+  $managerShortcut.Save()
   Set-InstallProgress $progress '安装完成，正在启动 DeepSeek Desktop…' 100
   Start-Sleep -Milliseconds 350
 } catch {

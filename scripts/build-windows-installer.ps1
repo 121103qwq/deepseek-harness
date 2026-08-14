@@ -98,6 +98,9 @@ function Copy-EffortSliderPackage([string]$PayloadRoot) {
   $manifest.version = $dshVersion
   $manifest.peerDependencies = @{}
   $manifest.devDependencies = @{}
+  if ($null -eq $manifest.PSObject.Properties['dependencies']) {
+    $manifest | Add-Member -MemberType NoteProperty -Name dependencies -Value @{}
+  }
   $manifest.dependencies = @{ clsx = '^2.1.1'; react = '^18.2.0' }
   $manifest | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $destination 'package.json') -Encoding utf8
 }
@@ -108,6 +111,7 @@ function Write-AppManifest([string]$AppRoot) {
     'deepseek-desktop-vision-preflight' = 'file:../plugins/deepseek-desktop-vision-preflight'
     'deepseek-desktop-web-diagnostics' = 'file:../plugins/deepseek-desktop-web-diagnostics'
     'deepseek-desktop-plugin-helper' = 'file:../plugins/deepseek-desktop-plugin-helper'
+    'deepseek-desktop-update-sync' = 'file:../plugins/deepseek-desktop-update-sync'
     'dsh-vision-sidecar' = 'file:../plugins/dsh-vision-sidecar'
     '@deepseek-ai/dsh-client-ui-model-selection' = 'file:../plugins/dsh-client-ui-model-selection'
   }
@@ -115,6 +119,59 @@ function Write-AppManifest([string]$AppRoot) {
   foreach ($entry in $pluginDependencies.GetEnumerator()) { $dependencies[$entry.Key] = $entry.Value }
   @{ name = 'deepseek-desktop-runtime'; version = $dshVersion; private = $true; dependencies = $dependencies } |
     ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $AppRoot 'package.json') -Encoding utf8
+}
+
+function Copy-ManagerPayload([string]$PayloadRoot) {
+  $sourceRoot = Join-Path $repoRoot 'apps\manager'
+  $builtRoot = Join-Path $sourceRoot 'dist'
+  if (!(Test-Path -LiteralPath (Join-Path $builtRoot 'server.js') -PathType Leaf) -or !(Test-Path -LiteralPath (Join-Path $builtRoot 'ui\index.html') -PathType Leaf)) {
+    $pnpm = (Get-Command pnpm.cmd -ErrorAction SilentlyContinue).Source
+    if ([string]::IsNullOrWhiteSpace($pnpm)) { throw 'The DSh Manager bundle is missing and pnpm.cmd is not available.' }
+    Push-Location $repoRoot
+    try {
+      & $pnpm '--filter' '@deepseek-ai/dsh-manager' 'run' 'build'
+      Assert-ExternalSuccess 'DSh Manager build'
+    } finally {
+      Pop-Location
+    }
+  }
+  $uiRoot = Join-Path $builtRoot 'ui'
+  $indexPath = Join-Path $uiRoot 'index.html'
+  $indexText = Get-Content -Raw -LiteralPath $indexPath
+  $jsMatch = [regex]::Match($indexText, 'src="/assets/([^"]+)"')
+  $cssMatch = [regex]::Match($indexText, 'href="/assets/([^"]+)"')
+  if (!$jsMatch.Success -or !$cssMatch.Success) { throw 'The DSh Manager index does not reference its bundled assets.' }
+  $jsPath = Join-Path (Join-Path $uiRoot 'assets') $jsMatch.Groups[1].Value
+  $cssPath = Join-Path (Join-Path $uiRoot 'assets') $cssMatch.Groups[1].Value
+  $nodePath = Join-Path $expandedNode 'node.exe'
+  foreach ($required in @((Join-Path $builtRoot 'server.js'), $indexPath, $jsPath, $cssPath, $nodePath)) {
+    if (!(Test-Path -LiteralPath $required -PathType Leaf)) { throw "DSh Manager single-exe resource is missing: $required" }
+  }
+
+  $desktopRoot = $PayloadRoot
+  $compiler = 'D:\Program Files (x86)\visualstudio\MSBuild\Current\Bin\Roslyn\csc.exe'
+  if (!(Test-Path -LiteralPath $compiler -PathType Leaf)) { throw "C# compiler is missing: $compiler" }
+  $source = Join-Path $distributionRoot 'templates\DeepSeekManager.cs'
+  $responseFile = Join-Path $workRoot "manager-$([IO.Path]::GetFileName($PayloadRoot)).rsp"
+@"
+/nologo
+/target:winexe
+/out:"$(Join-Path $PayloadRoot 'DSH luncher.exe')"
+/reference:System.dll
+/reference:System.Core.dll
+/reference:System.Drawing.dll
+/reference:System.Windows.Forms.dll
+/reference:"$(Join-Path $desktopRoot 'Microsoft.Web.WebView2.Core.dll')"
+/reference:"$(Join-Path $desktopRoot 'Microsoft.Web.WebView2.WinForms.dll')"
+/resource:"$nodePath",DSH.Manager.Node
+/resource:"$(Join-Path $builtRoot 'server.js')",DSH.Manager.Server
+/resource:"$indexPath",DSH.Manager.Index
+/resource:"$jsPath",DSH.Manager.AppJs
+/resource:"$cssPath",DSH.Manager.AppCss
+"$source"
+"@ | Set-Content -LiteralPath $responseFile -Encoding utf8
+  & $compiler "@$responseFile"
+  Assert-ExternalSuccess 'DSh Manager single-exe compilation'
 }
 
 function Copy-CommonPayload([string]$PayloadRoot) {
@@ -128,7 +185,7 @@ function Copy-CommonPayload([string]$PayloadRoot) {
   Copy-Item -LiteralPath (Join-Path $distributionRoot 'templates\Uninstall DeepSeek Harness.cmd') -Destination $PayloadRoot
   Copy-Item -LiteralPath (Join-Path $distributionRoot 'templates\default-web.patch.yml') -Destination (Join-Path $PayloadRoot 'defaults\cordis.patch.yml')
   $networkPluginCatalog | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $PayloadRoot 'defaults\network-plugins.json') -Encoding utf8
-  foreach ($plugin in @('deepseek-desktop-free-fallback', 'deepseek-desktop-vision-preflight', 'deepseek-desktop-web-diagnostics', 'deepseek-desktop-plugin-helper', 'dsh-vision-sidecar')) {
+  foreach ($plugin in @('deepseek-desktop-free-fallback', 'deepseek-desktop-vision-preflight', 'deepseek-desktop-web-diagnostics', 'deepseek-desktop-plugin-helper', 'deepseek-desktop-update-sync', 'dsh-vision-sidecar')) {
     Copy-Item -LiteralPath (Join-Path $distributionRoot "plugins\$plugin") -Destination $pluginRoot -Recurse
   }
   Copy-EffortSliderPackage $PayloadRoot
@@ -155,6 +212,7 @@ function Copy-CommonPayload([string]$PayloadRoot) {
 "@ | Set-Content -LiteralPath $responseFile -Encoding utf8
   & $compiler "@$responseFile"
   Assert-ExternalSuccess 'DeepSeek Desktop compilation'
+  Copy-ManagerPayload $PayloadRoot
   Write-AppManifest $appRoot
 }
 
