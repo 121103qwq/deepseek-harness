@@ -1,0 +1,49 @@
+- id: agent-default-model
+  config:
+    provider: groq
+    model: openai/gpt-oss-20b
+
+- id: llm-pi-ai
+  config:
+    providers:
+      groq:
+        displayName: Groq Free Plan
+        apiKeyEnv: GROQ_API_KEY
+        api: openai-completions
+        baseURL: https://api.groq.com/openai/v1
+        models:
+          - id: openai/gpt-oss-20b
+            name: GPT-OSS 20B
+            contextWindow: 131072
+            maxTokens: 65536
+          - id: openai/gpt-oss-120b
+            name: GPT-OSS 120B
+            contextWindow: 131072
+            maxTokens: 65536
+          - id: qwen/qwen3.6-27b
+            name: Qwen3.6 27B
+            contextWindow: 131072
+            maxTokens: 16384
+
+# These community plugins are bundled by DeepSeek Desktop and enabled by
+# default. They never ship an API key and do not claim to be official DeepSeek
+# components.
+- id: deepseek-desktop-free-fallback
+  name: deepseek-desktop-free-fallback
+  config:
+    primaryProvider: groq
+    primaryModel: openai/gpt-oss-20b
+    fallbackProvider: groq
+    fallbackModel: openai/gpt-oss-120b
+
+- id: deepseek-desktop-vision-preflight
+  name: deepseek-desktop-vision-preflight
+
+- id: deepseek-desktop-web-diagnostics
+  name: deepseek-desktop-web-diagnostics
+
+- id: llm-deepseek
+  disabled: true
+
+- id: web-search-deepseek
+  disabled: true
