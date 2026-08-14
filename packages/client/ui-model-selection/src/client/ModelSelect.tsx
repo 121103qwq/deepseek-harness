@@ -2,8 +2,8 @@
  * ModelSelect: the composer's named model seat (`conversation.input.model`).
  * Two-level selection per figma 496:26454's MenuDropdown: the root menu is
  * the Model / Effort row pair (label + current value + a right chevron),
- * each drilling into its own list — the provider-grouped model list over
- * the shared directory, and the effort levels. The trigger (313:14108's
+ * each drilling into its own surface — the provider-grouped model list over
+ * the shared directory, and a discrete effort slider. The trigger (313:14108's
  * ToggleButton) shows both: model name + effort in the caption tone.
  * Data and submission ride the SAME per-session ModelDirectory as the
  * /model popup; exact-model reasoning metadata and the selected effort come
@@ -100,6 +100,14 @@ export function ModelSelect(
         ...effort.description === undefined ? {} : { description: effort.description },
       })),
     ], [reasoning, t])
+  const selectedEffortIndex = effortChoices.length === 0
+    ? 0
+    : Math.max(0, effortChoices.findIndex(level => level.effort === effectiveEffort))
+  const effortProgress = effortChoices.length < 2
+    ? 0
+    : selectedEffortIndex / (effortChoices.length - 1) * 100
+  const selectedEffort = effortChoices[selectedEffortIndex]
+  const selectedEffortDescription = selectedEffort?.description
   const busy = state.status === 'selecting'
 
   const reload = (): void => {
@@ -155,6 +163,7 @@ export function ModelSelect(
       return
     }
     if (!open) return
+    if (event.target instanceof HTMLInputElement) return
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault()
       moveFocus(event.key === 'ArrowDown' ? 1 : -1)
@@ -166,9 +175,9 @@ export function ModelSelect(
     close()
   }
 
-  const settleSelection = (accepted: boolean): void => {
+  const settleSelection = (accepted: boolean, keepOpen = false): void => {
     if (accepted) {
-      if (rootRef.current !== null) close(true)
+      if (!keepOpen && rootRef.current !== null) close(true)
       return
     }
     const message = directory.getSnapshot().error
@@ -199,7 +208,13 @@ export function ModelSelect(
       ...effort === undefined ? {} : { reasoningEffort: effort },
     }
     lastActionRef.current = 'select'
-    void select(selection).then(settleSelection)
+    void select(selection).then((accepted) => { settleSelection(accepted, true) })
+  }
+
+  const chooseEffortAt = (index: number): void => {
+    const effort = effortChoices[index]?.effort
+    if (effortChoices[index] === undefined) return
+    chooseEffort(effort)
   }
 
   const modelLabel = currentChoice?.model.name ?? t('trigger.fallback')
@@ -335,28 +350,44 @@ export function ModelSelect(
               )}
               {effortChoices.length === 0
                 ? <div className={css.empty}>{t('empty.efforts')}</div>
-                : effortChoices.map(level => (
-                  <button
-                    ref={itemRef()}
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={effectiveEffort === level.effort}
-                    className={clsx(css.option, effectiveEffort === level.effort && css.selected)}
-                    key={level.key}
-                    disabled={busy}
-                    onClick={() => { chooseEffort(level.effort) }}
-                  >
-                    <span className={css.optionCopy}>
-                      <span className={css.modelName}>{level.label}</span>
-                      {level.description !== undefined && (
-                        <span className={css.description}>{level.description}</span>
-                      )}
-                    </span>
-                    <span className={css.check}>
-                      {effectiveEffort === level.effort ? <IconCheckOutline16 /> : null}
-                    </span>
-                  </button>
-                ))}
+                : (
+                  <div className={css.effortPane}>
+                    <div className={css.effortTitle}>
+                      {t('effort.title', { effort: effortLabel ?? t('effort.providerDefault') })}
+                    </div>
+                    <div className={css.effortSlider}>
+                      <div className={css.effortTrack} aria-hidden="true">
+                        <span className={css.effortTrackFill} style={{ width: `${effortProgress}%` }} />
+                        {effortChoices.map((level, index) => (
+                          <span
+                            className={clsx(css.effortMarker, index === selectedEffortIndex && css.effortMarkerActive)}
+                            key={level.key}
+                            style={{ left: `${effortChoices.length < 2 ? 0 : index / (effortChoices.length - 1) * 100}%` }}
+                          />
+                        ))}
+                      </div>
+                      <input
+                        className={css.effortInput}
+                        type="range"
+                        min={0}
+                        max={effortChoices.length - 1}
+                        step={1}
+                        value={selectedEffortIndex}
+                        disabled={busy}
+                        aria-label={t('effort.sliderAria')}
+                        aria-valuetext={effortLabel ?? t('effort.providerDefault')}
+                        onChange={(event) => { chooseEffortAt(Number(event.currentTarget.value)) }}
+                      />
+                    </div>
+                    <div className={css.effortEndpoints}>
+                      <span>{t('effort.faster')}</span>
+                      <span>{t('effort.smarter')}</span>
+                    </div>
+                    {selectedEffortDescription !== undefined && (
+                      <div className={css.description}>{selectedEffortDescription}</div>
+                    )}
+                  </div>
+                )}
             </>
           )}
         </div>

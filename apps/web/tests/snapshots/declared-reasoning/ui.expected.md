@@ -1,7 +1,4 @@
 - menu "模型与推理等级":
-  - menuitemradio "Default" [checked]:
-    - text: Default
-    - img
-  - menuitemradio "Off"
-  - menuitemradio "High"
-  - menuitemradio "Max"
+  - text: 思考努力值 Default
+  - slider "选择思考努力值": "0"
+  - text: 更快 更聪明

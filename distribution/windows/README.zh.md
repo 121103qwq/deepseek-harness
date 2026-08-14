@@ -10,12 +10,14 @@
 
 每次打开都会明确提供两种选择：**免费模型（Groq Free Plan）** 或 **DeepSeek API**。默认 Groq 路由会在内置 Harness 模型选择器中预先配置 GPT-OSS 20B、GPT-OSS 120B 和 Qwen3.6 27B，不使用本地模型。应用会直接打开所选路由，而不是先显示 API key 页面；只有在内置“模型”设置中配置 Groq 时才需要其 key，选择 DeepSeek API 则使用原有的内置 DeepSeek key 配置流程。
 
-当前源码还预装三个社区插件（本次只提交源码，不重新打包 setup）：
+安装程序会在“这是社区分发版本，不是 DeepSeek 官方安装程序”提示之后提供“选择插件…”按钮；勾选结果只写入当前用户的 Web profile。本次只提交源码，不重新打包 setup：
 
 - `deepseek-desktop-free-fallback`：免费路由在首个输出前遇到限流、超时、服务端或传输错误时，自动切换到备用免费模型；一旦已经产生输出，不会中途换模型。
 - `deepseek-desktop-vision-preflight`：发送图片前读取模型能力；模型明确不支持图片时立即给出可读提示，不把图片静默发送给文本模型。
 - `deepseek-desktop-web-diagnostics`：提供 `http://127.0.0.1:端口/__deepseek_desktop/diagnostics` 本地诊断端点，帮助区分 WebView 本地连接问题与模型请求问题。
 - `dsh-vision-sidecar`：随安装器预装的托管视觉插件，默认保持关闭，不改变免费文本模型；需要图片时可在 profile patch 中启用，默认使用 LLM7.io 的匿名视觉路由。
+
+思考努力值滑杆是内置 UI 改进，不作为独立可选项；它随桌面界面一起安装。
 
 这些插件不包含 API key，也不代表 DeepSeek 官方；下一次制作安装包时才会将它们复制进 payload。
 

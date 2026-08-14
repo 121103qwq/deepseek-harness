@@ -25,9 +25,10 @@
             contextWindow: 131072
             maxTokens: 16384
 
-# These community plugins are bundled by DeepSeek Desktop and enabled by
-# default. They never ship an API key and do not claim to be official DeepSeek
-# components.
+# These community plugins are bundled by DeepSeek Desktop. The installer shows
+# a selection dialog after the non-official-distribution notice and writes the
+# chosen enabled/disabled state into the user's profile. They never ship an API
+# key and do not claim to be official DeepSeek components.
 - id: deepseek-desktop-free-fallback
   name: deepseek-desktop-free-fallback
   config:

@@ -68,10 +68,11 @@ describe('ModelSelect reasoning effort', () => {
     })
     fireEvent.click(trigger)
     fireEvent.click(screen.getByRole('menuitem', { name: /推理等级/ }))
-    expect(screen.getAllByRole('menuitemradio').map(item => item.textContent))
-      .toEqual(['Off', 'High', 'MaxLargest budget'])
+    const slider = screen.getByRole('slider', { name: '选择思考努力值' }) as HTMLInputElement
+    expect(slider.getAttribute('aria-valuetext')).toBe('High')
+    expect(slider.value).toBe('1')
 
-    fireEvent.click(screen.getByRole('menuitemradio', { name: /Max/ }))
+    fireEvent.change(slider, { target: { value: '2' } })
     await waitFor(() => {
       expect(select).toHaveBeenCalledWith({
         provider: 'deepseek-official',
@@ -108,8 +109,9 @@ describe('ModelSelect reasoning effort', () => {
       name: '选择模型，当前 Model，推理等级 Default',
     }))
     fireEvent.click(screen.getByRole('menuitem', { name: /推理等级/ }))
-    expect(screen.getAllByRole('menuitemradio').map(item => item.textContent))
-      .toEqual(['Default', 'Standard'])
+    expect(screen.getByRole('slider', { name: '选择思考努力值' }).getAttribute('aria-valuetext')).toBe('Default')
+    expect(screen.getByText('更快')).toBeTruthy()
+    expect(screen.getByText('更聪明')).toBeTruthy()
   })
 
   it('prompts for a selection when the current model is no longer advertised', () => {

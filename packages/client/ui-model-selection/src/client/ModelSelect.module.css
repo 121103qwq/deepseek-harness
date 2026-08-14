@@ -259,3 +259,115 @@
   flex: 0 0 auto;
   color: var(--dsw-alias-label-tertiary);
 }
+
+.effortPane {
+  padding: 10px 10px 8px;
+}
+
+.effortTitle {
+  margin-bottom: 14px;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+}
+
+.effortSlider {
+  position: relative;
+  height: 22px;
+  margin: 0 8px;
+}
+
+.effortTrack {
+  position: absolute;
+  top: 9px;
+  right: 0;
+  left: 0;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--dsw-alias-border-l3);
+}
+
+.effortTrackFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--dsw-alias-state-business-primary);
+}
+
+.effortMarker {
+  position: absolute;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border: 2px solid var(--dsw-specific-menu);
+  border-radius: 50%;
+  background: var(--dsw-alias-label-tertiary);
+  transform: translate(-50%, -50%);
+}
+
+.effortMarkerActive {
+  width: 12px;
+  height: 12px;
+  background: var(--dsw-alias-state-business-primary);
+}
+
+.effortInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 22px;
+  margin: 0;
+  appearance: none;
+  outline: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.effortInput:disabled {
+  cursor: default;
+}
+
+.effortInput:focus-visible {
+  border-radius: 6px;
+  box-shadow: 0 0 0 2px var(--dsw-alias-border-l3);
+}
+
+.effortInput::-webkit-slider-runnable-track {
+  height: 4px;
+  background: transparent;
+}
+
+.effortInput::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  appearance: none;
+  border: 2px solid var(--dsw-specific-menu);
+  border-radius: 50%;
+  background: var(--dsw-alias-state-business-primary);
+  box-shadow: var(--dsw-shadow-lv1);
+}
+
+.effortInput::-moz-range-track {
+  height: 4px;
+  background: transparent;
+}
+
+.effortInput::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--dsw-specific-menu);
+  border-radius: 50%;
+  background: var(--dsw-alias-state-business-primary);
+  box-shadow: var(--dsw-shadow-lv1);
+}
+
+.effortEndpoints {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}

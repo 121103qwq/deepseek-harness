@@ -44,12 +44,41 @@ function Get-Sha256([string]$Path) {
   return ($hashLine[0] -replace '\s', '').ToLowerInvariant()
 }
 
+function Copy-EffortSliderPackage([string]$PayloadRoot) {
+  $sourceRoot = Join-Path $repoRoot 'packages\client\ui-model-selection'
+  $builtClient = Join-Path $sourceRoot 'lib\client.js'
+  if (!(Test-Path -LiteralPath $builtClient -PathType Leaf)) {
+    $pnpm = (Get-Command pnpm.cmd -ErrorAction SilentlyContinue).Source
+    if ([string]::IsNullOrWhiteSpace($pnpm)) { throw 'The effort-slider UI bundle is missing and pnpm.cmd is not available.' }
+    Push-Location $repoRoot
+    try {
+      & $pnpm '--filter' '@deepseek-ai/dsh-client-ui-model-selection' 'bundle'
+      Assert-ExternalSuccess 'Effort-slider UI bundle'
+    } finally {
+      Pop-Location
+    }
+  }
+  $destination = Join-Path $PayloadRoot 'plugins\dsh-client-ui-model-selection'
+  New-Item -ItemType Directory -Force -Path (Join-Path $destination 'lib') | Out-Null
+  Copy-Item -LiteralPath (Join-Path $sourceRoot 'lib\client.js') -Destination (Join-Path $destination 'lib\client.js')
+  Copy-Item -LiteralPath (Join-Path $sourceRoot 'lib\index.js') -Destination (Join-Path $destination 'lib\index.js')
+  Copy-Item -LiteralPath (Join-Path $sourceRoot 'lib\invariant.js') -Destination (Join-Path $destination 'lib\invariant.js')
+  Copy-Item -LiteralPath (Join-Path $sourceRoot 'lib\types') -Destination (Join-Path $destination 'lib') -Recurse
+  $manifest = Get-Content -Raw (Join-Path $sourceRoot 'package.json') | ConvertFrom-Json
+  $manifest.version = $dshVersion
+  $manifest.peerDependencies = @{}
+  $manifest.devDependencies = @{}
+  $manifest.dependencies = @{ clsx = '^2.1.1'; react = '^18.2.0' }
+  $manifest | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $destination 'package.json') -Encoding utf8
+}
+
 function Write-AppManifest([string]$AppRoot) {
   $pluginDependencies = @{
     'deepseek-desktop-free-fallback' = 'file:../plugins/deepseek-desktop-free-fallback'
     'deepseek-desktop-vision-preflight' = 'file:../plugins/deepseek-desktop-vision-preflight'
     'deepseek-desktop-web-diagnostics' = 'file:../plugins/deepseek-desktop-web-diagnostics'
     'dsh-vision-sidecar' = 'file:../plugins/dsh-vision-sidecar'
+    '@deepseek-ai/dsh-client-ui-model-selection' = 'file:../plugins/dsh-client-ui-model-selection'
   }
   $dependencies = @{ '@deepseek-ai/dsh' = $dshVersion }
   foreach ($entry in $pluginDependencies.GetEnumerator()) { $dependencies[$entry.Key] = $entry.Value }
@@ -70,6 +99,7 @@ function Copy-CommonPayload([string]$PayloadRoot) {
   foreach ($plugin in @('deepseek-desktop-free-fallback', 'deepseek-desktop-vision-preflight', 'deepseek-desktop-web-diagnostics', 'dsh-vision-sidecar')) {
     Copy-Item -LiteralPath (Join-Path $distributionRoot "plugins\$plugin") -Destination $pluginRoot -Recurse
   }
+  Copy-EffortSliderPackage $PayloadRoot
   Copy-Item -LiteralPath (Join-Path $repoRoot 'apps\web\public\favicon.svg') -Destination (Join-Path $PayloadRoot 'DeepSeek-Black-Logo.svg')
   Copy-Item -LiteralPath (Join-Path $distributionRoot 'templates\DeepSeek-Black-Logo.png') -Destination $PayloadRoot
   Copy-Item -LiteralPath (Join-Path $webViewExtract 'lib\net462\Microsoft.Web.WebView2.Core.dll') -Destination $desktopRoot
@@ -134,7 +164,7 @@ Class=IEXPRESS
 SEDVersion=3
 [Options]
 PackagePurpose=InstallApp
-ShowInstallProgramWindow=1
+ShowInstallProgramWindow=0
 HideExtractAnimation=0
 UseLongFileName=1
 InsideCompressed=0
@@ -146,7 +176,7 @@ DisplayLicense=
 FinishMessage=DeepSeek Desktop was installed for this Windows user.
 TargetName=$installerPath
 FriendlyName=DeepSeek Desktop $dshVersion
-AppLaunched=cmd.exe /c powershell.exe -NoProfile -ExecutionPolicy Bypass -File install-$Kind.ps1
+AppLaunched=powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File install-$Kind.ps1
 PostInstallCmd=<None>
 AdminQuietInstCmd=
 UserQuietInstCmd=

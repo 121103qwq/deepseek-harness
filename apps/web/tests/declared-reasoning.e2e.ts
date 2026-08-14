@@ -1,6 +1,6 @@
 // Web e2e scenario: a hand-declared model's `reasoningEfforts` reaches the
-// composer's effort pane — the levels a settings profile declares are exactly
-// what the picker offers, and picking one records it with the Agent default.
+// composer's effort slider — the levels a settings profile declares are exactly
+// what the slider offers, and picking one records it with the Agent default.
 // Zero model calls: declaring, describing, and switching are settings/llm
 // traffic only, so there is no fixture and a stray stream would fail loud.
 import { readFile } from 'node:fs/promises'
@@ -68,18 +68,21 @@ describe.skipIf(MODE === 'record')('web e2e: declared reasoning efforts reach th
     await trigger.click()
     await page.getByRole('menuitem', { name: /推理等级/ }).click()
 
-    // Declared levels, nothing else: the provider-default entry (the route
-    // configures no `reasoning`), then Off/High/Max — minimal, low, medium,
-    // and xhigh were not declared and must not be offered.
-    const levels = page.getByRole('menuitemradio')
-    await expect.poll(async () => levels.allTextContents(), { timeout: 10_000 })
-      .toEqual(['Default', 'Off', 'High', 'Max'])
+    // The slider has four ordered stops: the provider-default entry (the
+    // route configures no `reasoning`), then Off/High/Max. Minimal, low,
+    // medium, and xhigh were not declared and must not be offered.
+    const slider = page.getByRole('slider', { name: '选择思考努力值' })
+    await expect.poll(() => slider.getAttribute('min'), { timeout: 10_000 }).toBe('0')
+    await expect.poll(() => slider.getAttribute('max'), { timeout: 10_000 }).toBe('3')
+    await expect.poll(() => slider.getAttribute('aria-valuetext'), { timeout: 10_000 }).toBe('Default')
     const snapshot = await captureStableAria(page, '[role="menu"]', scaffold.workspaceCwd)
     await compareOrRefreshGolden(UI_EXPECTED, snapshot, MODE)
 
     // Picking a level is the same gesture that saves the default selection, so
     // the effort lands in the Agent default Settings section beside provider/model.
-    await page.getByRole('menuitemradio', { name: 'High' }).click()
+    await slider.press('ArrowRight')
+    await expect.poll(() => slider.getAttribute('aria-valuetext'), { timeout: 10_000 }).toBe('Off')
+    await slider.press('ArrowRight')
     await expect.poll(
       async () => readFile(join(scaffold.harnessHome, 'settings.yaml'), 'utf8'),
       { timeout: 10_000 },
