@@ -1,5 +1,5 @@
 /**
- * Expose a loopback-only, dependency-free readiness document for the native
+ * Expose a dependency-free local readiness document for the native
  * WebView host. It makes local connection failures distinguishable from a
  * failed model request without changing the normal Web UI route.
  */
