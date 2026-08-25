@@ -2,45 +2,50 @@
 
 [English](README.md) | 中文
 
-`scripts/build-windows-installer.ps1` 为 DeepSeek Desktop 生成两个仅限当前用户的 Windows x64 安装程序；它是基于已发布 `@deepseek-ai/dsh` 包的社区打包版。
+本目录管理非官方 **DeepSeek Desktop** Windows x64 发行版。`scripts/build-windows-installer.ps1` 只生成一个当前用户范围的完整安装程序 `Deepseek-desktop-offline.exe`；不发布在线版或镜像下载版。
 
-两个安装程序都会在校验 SHA-256 后内置 Node.js 22.19.0，在名为 `DeepSeek Desktop` 的 WebView 窗口中打开本地 Harness UI，并添加一个开始菜单快捷方式。它们不请求管理员权限，也不修改系统 `PATH`。
+安装包内置 Node.js 24.19.0、`@deepseek-ai/dsh` 0.1.1-rc.2、WebView2 绑定、完整生产依赖闭包以及下文列出的全部桌面插件。默认安装到 `%LOCALAPPDATA%\Programs\DeepSeek Desktop`，在 HKCU 中注册应用和卸载程序，创建开始菜单快捷方式，并可选创建桌面快捷方式。它不请求管理员权限，不修改系统 `PATH`，不打开 PowerShell，也不会把依赖工作留到第一次启动。
 
-载荷还包含可选的 `DSH luncher.exe` 管理器。它隔离管理多个 DSh 安装目录和源码工作区，为每个实例提供独立的 DSh Home，并在独立 WebView 窗口中打开选中的聊天。该管理器是社区启动器，不是 DeepSeek 官方应用。
+安装过程会显示明确的社区发行声明、目标目录页、可选组件和原生安装进度。隐藏配置器会在提交配置前获取与 DSH Launcher 相同的每 `DSH_HOME` 锁，将提供方和插件变更作为一次可回档更新执行，然后启动内置 Web profile 并检查插件 helper 清单。检查失败时会恢复原 profile 和设置，不留下部分配置的安装。
 
-完整离线版内置已发布 Harness 的完整依赖闭包。在线版会在安装时通过 `registry.npmmirror.com` 下载相同的固定依赖闭包；镜像不可用时自动回退到 `registry.npmjs.org`。应用数据保存在 `%LOCALAPPDATA%\DeepSeek Harness Data`；附带的卸载程序会移除程序文件和快捷方式，同时保留该数据目录。
+DeepSeek Desktop 使用内置 WebView 显示本地 Harness UI，不打开浏览器。Node 进程使用仅回环可访问的动态端口，继承标准 `HTTP_PROXY`、`HTTPS_PROXY` 和 `NO_PROXY` 环境设置，并会随桌面进程一起结束。第一次关闭会询问以后是最小化到系统托盘，还是直接退出。卸载会删除程序文件、快捷方式、App Paths 和卸载注册项，同时保留 `%LOCALAPPDATA%\DeepSeek Harness Data`。
 
-每次打开都会明确提供两种选择：**免费模型（Groq Free Plan）** 或 **DeepSeek API**。默认 Groq 路由会在内置 Harness 模型选择器中预先配置 GPT-OSS 20B、GPT-OSS 120B 和 Qwen3.6 27B，不使用本地模型。应用会直接打开所选路由，而不是先显示 API key 页面；只有在内置“模型”设置中配置 Groq 时才需要其 key，选择 DeepSeek API 则使用原有的内置 DeepSeek key 配置流程。
+## 模型
 
-安装程序会在“这是社区分发版本，不是 DeepSeek 官方安装程序”提示之后提供“选择插件…”按钮；勾选结果只写入当前用户的 Web profile。安装界面还提供两个更新选项：默认在后台检查更新；后台下载必须主动勾选，而且不会自动安装可执行文件。`deepseek-desktop-plugin-helper` 与 `deepseek-desktop-update-sync` 是两个安装模式都必须自带的插件；更新插件会检查官方上游仓库和本社区仓库，并通过 `/__deepseek_desktop/update-sync` 提供只读状态。在线版会在安装阶段下载已固定来源的网络插件；离线版会保留这些条目但默认关闭。本次只提交源码，不重新打包 setup：
+默认路线是 **Kilo Auto Free**：一个会自动选中、无需登录和 API key 的匿名托管模型。**LLM7** 会作为匿名备用路线，仅在首个模型输出前遇到短暂故障时切换。安装时也可以改选内置 **DeepSeek API** 路线；在用户于 Harness 设置中填写自己的 key 之前，该路线保持禁用。
 
-- `deepseek-desktop-free-fallback`：免费路由在首个输出前遇到限流、超时、服务端或传输错误时，自动切换到备用免费模型；一旦已经产生输出，不会中途换模型。
-- `deepseek-desktop-vision-preflight`：发送图片前读取模型能力；模型明确不支持图片时立即给出可读提示，不把图片静默发送给文本模型。
-- `deepseek-desktop-web-diagnostics`：提供 `http://127.0.0.1:端口/__deepseek_desktop/diagnostics` 本地诊断端点，帮助区分 WebView 本地连接问题与模型请求问题。
-- `deepseek-desktop-update-sync`：默认后台检查官方上游和本社区两个 GitHub Release；勾选后台下载后，会把匹配的安装程序暂存到当前用户目录，等待用户确认，不会自行启动或静默安装。
-- `dsh-vision-sidecar`：随安装器预装的托管视觉插件，默认保持关闭，不改变免费文本模型；需要图片时可在 profile patch 中启用，默认使用 LLM7.io 的匿名视觉路由。
-- `dsh-session-export`：在线版安装时下载固定提交的预构建 GitHub 包，支持 Markdown/JSON 会话导出。
-- `dsh-mic-input`：在线版安装时下载固定提交的预构建 GitHub 包，增加浏览器语音输入并支持 `zh-CN`。
-- `dsh-client-auto-continue` 与 `dsh-web-attention-badge`：在线版安装时下载固定版本的 npm 包，可在安装器中分别选择。
+安装包不内置任何凭据。Kilo 和 LLM7 都是远程服务，不是本地模型；它们的可用性、额度、底层模型和数据保留政策由服务方决定。安装界面会提醒用户不要通过匿名免费路线发送敏感数据。
 
-思考努力值滑杆是内置 UI 改进，不作为独立可选项；它随桌面界面一起安装。
+## 插件
 
-这些插件不包含 API key，也不代表 DeepSeek 官方。网络插件的来源固定在 `scripts/build-windows-installer.ps1` 中；安装时使用 `--ignore-scripts`，不会执行下载包的 npm 生命周期脚本。
+安装程序启动前，所有插件文件已经齐全。除实验性视觉 sidecar 之外，所有组件默认勾选；取消勾选只会禁用对应 profile 配置项，不会下载或删除文件。
+
+- `deepseek-desktop-plugin-helper` 在仅回环可访问的 `/__deepseek_desktop/plugin-helper` 接口报告已安装插件 id 和启用状态，并且始终启用。
+- `deepseek-desktop-update-sync` 默认每六小时检查官方 Harness 和社区 GitHub Release。后台下载暂存需要主动开启，只接受最大 330 MiB 且带 GitHub 摘要的离线桌面安装产物，永远不会启动或自动安装它。
+- `deepseek-desktop-free-fallback` 仅在首个输出前发生短暂故障时，从 Kilo 切换到 LLM7。
+- `deepseek-desktop-vision-preflight` 会为不支持的图片输入给出可读说明。
+- `deepseek-desktop-web-diagnostics` 提供仅回环可访问的运行时和插件诊断。
+- `dsh-session-export` 可以将会话导出为 Markdown 或 JSON。
+- `dsh-mic-input` 增加 WebView 语音输入，并默认选中中文。
+- `dsh-client-auto-continue` 会恢复符合条件的中断请求；组装 payload 内含 RC2 keyed slot 兼容补丁。
+- `dsh-web-attention-badge` 增加窗口级任务提醒角标。
+- `@deepseek-ai/dsh-client-ui-model-selection` 在模型选择器中提供已支持的推理强度选项。
+- `dsh-vision-sidecar` 提供实验性托管视觉路线，默认保持禁用。
+
+第三方包在 `scripts/build-windows-installer.ps1` 中固定来源。组装时使用 `--ignore-scripts`，因此这些包不能在构建或用户安装过程中执行 npm 生命周期脚本。
 
 ## 构建
 
-在仓库根目录的 PowerShell 会话中运行：
+在仓库包已经构建的前提下，从仓库根目录的 Windows PowerShell 会话运行：
 
 ```powershell
 .\scripts\build-windows-installer.ps1
 ```
 
-`Online` 安装程序和 `Offline` 安装程序会写入 `distribution/windows/dist/`。构建器会在 `distribution/windows/build/` 下新建目录，并拒绝覆盖已有的发布产物。构建器只在内部校验内置 Node.js 压缩包，不生成用于发布的校验文件。
+构建器只下载固定的构建输入，验证 Node.js 和 WebView2 包的 SHA-256，组装提升到顶层的生产依赖树，重新构建可信的 `node-pty` 原生依赖，编译 WinForms 宿主，然后写入 `distribution/windows/dist/Deepseek-desktop-offline.exe`。它拒绝覆盖已存在的发布产物，也不会为发布生成摘要伴随文件。
 
-## 验证
+## 发布验证
 
-发布前，在 Windows 用户会话中运行两个安装程序。安装完成后，从开始菜单启动 **DeepSeek Desktop**，确认其内置窗口加载本地 UI。
+发布前，将生成的可执行文件安装到全新的当前用户目录，确认配置器日志报告插件链检查成功，启动内置 UI，检查“模型”和“插件”页，并实际请求选定的提供方。然后卸载，确认注册项和程序文件已清除且 `DSH_HOME` 仍保留，再重新安装一次。
 
-该安装程序是独立的社区分发物，不含 API key，也不声称是 DeepSeek 官方发布。
-
-同一个 payload 还会安装 **DSh Manager**，这是一个类似 PCL2 的 Windows 启动器，用于管理 DeepSeek Harness 生态。用户看到的管理器是单一文件 `DSH luncher.exe`；管理器服务、前端资源和 Node 运行时都嵌入其中，并在启动时自动释放。它可以登记安装实例或源码实例，在独立的聊天 WebView2 窗口中启动每个实例，管理插件和 Skill，发现官方 `@deepseek-ai/dsh-*` 包以及带有 GitHub `dsh-plugin` topic 的仓库，并将对话同步与每个实例的扩展和设置隔离开。管理器快捷方式会放在与 DeepSeek Desktop 相同的开始菜单文件夹中。它的公开仓库是 [DSH-Launcher](https://github.com/121103qwq/DSH-Launcher)。
+当前社区可执行文件未进行代码签名，因此 Windows Defender 或 SmartScreen 可能显示未知发布者警告。不要绕过杀毒软件的检出；只能通过本仓库的 GitHub Release 发布经本地验证的同一份产物。

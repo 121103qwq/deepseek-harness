@@ -31,12 +31,26 @@ function readPluginRoster() {
   }
 
   const plugins = []
-  for (const block of text.split(/(?=^- id: )/m)) {
-    const id = /^- id:\s*(\S+)/m.exec(block)?.[1]
-    if (!id) continue
+  const lines = text.split(/\r?\n/)
+  for (let index = 0; index < lines.length;) {
+    const start = /^(\s*)- id:\s*(\S+)/.exec(lines[index])
+    if (!start) {
+      index += 1
+      continue
+    }
+    const indentation = start[1].length
+    const id = start[2]
+    let end = index + 1
+    while (end < lines.length) {
+      const nextEntry = /^(\s*)- (?:id|insert):/.exec(lines[end])
+      if (nextEntry && nextEntry[1].length <= indentation) break
+      end += 1
+    }
+    const block = lines.slice(index, end).join('\n')
     const name = /^\s+name:\s*['"]?([^'"\r\n]+)['"]?\s*$/m.exec(block)?.[1]?.trim() ?? id
     const disabled = /^\s+disabled:\s*true\s*$/m.test(block)
     plugins.push({ id, name, enabled: !disabled })
+    index = end
   }
   return { plugins }
 }

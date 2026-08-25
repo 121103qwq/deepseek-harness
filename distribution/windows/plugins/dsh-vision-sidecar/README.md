@@ -1,6 +1,6 @@
 # dsh-vision-sidecar
 
-[中文说明](README.zh-CN.md)
+English | [中文](README.zh.md)
 
 Give text-only models in [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) hosted visual perception without replacing the reasoning model. Images go to a free or custom OpenAI-compatible vision API; the exact description sent to the configured reasoning model is then committed to the DSH session and replayed as ordinary text.
 
@@ -25,7 +25,7 @@ Before starting, have a DSH Web profile that can already call its text model. Th
 2. Install the plugin and start the Web profile. The default LLM7.io vision tier needs no vision account or key.
 
 ```powershell
-dsh plugin --profile web add github:121103qwq/dsh-vision-sidecar#v0.1.3
+dsh plugin --profile web add github:121103qwq/dsh-vision-sidecar#v0.1.4
 dsh --profile web
 ```
 

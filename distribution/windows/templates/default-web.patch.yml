@@ -1,82 +1,89 @@
 - id: agent-default-model
   config:
-    provider: groq
-    model: openai/gpt-oss-20b
+    provider: kilo
+    model: kilo-auto/free
 
 - id: llm-pi-ai
   config:
     providers:
-      groq:
-        displayName: Groq Free Plan
-        apiKeyEnv: GROQ_API_KEY
+      kilo:
+        displayName: Kilo Auto Free（匿名）
         api: openai-completions
-        baseURL: https://api.groq.com/openai/v1
+        baseURL: https://api.kilo.ai/api/gateway
         models:
-          - id: openai/gpt-oss-20b
-            name: GPT-OSS 20B
-            contextWindow: 131072
-            maxTokens: 65536
-          - id: openai/gpt-oss-120b
-            name: GPT-OSS 120B
-            contextWindow: 131072
-            maxTokens: 65536
-          - id: qwen/qwen3.6-27b
-            name: Qwen3.6 27B
-            contextWindow: 131072
-            maxTokens: 16384
+          - id: kilo-auto/free
+            name: Kilo Auto Free
+            contextWindow: 256000
+            maxTokens: 10000
+            input:
+              - text
+      llm7:
+        displayName: LLM7 匿名备用
+        apiKeyEnv: LLM7_API_KEY
+        api: openai-completions
+        baseURL: https://api.llm7.io/v1
+        models:
+          - id: default
+            name: LLM7 Default
+            contextWindow: 128000
+            maxTokens: 8192
+            input:
+              - text
 
-# These community plugins are bundled by DeepSeek Desktop. The installer shows
-# a selection dialog after the non-official-distribution notice and writes the
-# chosen enabled/disabled state into the user's profile. They never ship an API
-# key and do not claim to be official DeepSeek components.
-- id: deepseek-desktop-plugin-helper
-  name: deepseek-desktop-plugin-helper
+# DeepSeek Desktop bundles every plugin below. The installer updates only these
+# owned rows and preserves unrelated profile entries on an upgrade.
+- insert:
+    - id: deepseek-desktop-plugin-helper
+      name: deepseek-desktop-plugin-helper
 
-- id: deepseek-desktop-update-sync
-  name: deepseek-desktop-update-sync
-  config:
-    checkInBackground: true
-    allowBackgroundAutoUpdate: false
-    intervalHours: 6
+- insert:
+    - id: deepseek-desktop-update-sync
+      name: deepseek-desktop-update-sync
+      config:
+        checkInBackground: true
+        allowBackgroundAutoUpdate: false
+        intervalHours: 6
 
-- id: deepseek-desktop-free-fallback
-  name: deepseek-desktop-free-fallback
-  config:
-    primaryProvider: groq
-    primaryModel: openai/gpt-oss-20b
-    fallbackProvider: groq
-    fallbackModel: openai/gpt-oss-120b
+- insert:
+    - id: deepseek-desktop-free-fallback
+      name: deepseek-desktop-free-fallback
+      config:
+        primaryProvider: kilo
+        primaryModel: kilo-auto/free
+        fallbackProvider: llm7
+        fallbackModel: default
 
-- id: deepseek-desktop-vision-preflight
-  name: deepseek-desktop-vision-preflight
+- insert:
+    - id: deepseek-desktop-vision-preflight
+      name: deepseek-desktop-vision-preflight
 
-- id: deepseek-desktop-web-diagnostics
-  name: deepseek-desktop-web-diagnostics
+- insert:
+    - id: deepseek-desktop-web-diagnostics
+      name: deepseek-desktop-web-diagnostics
 
-# These four community plugins are downloaded by the online installer from
-# pinned npm/GitHub sources. The offline installer keeps the rows disabled.
-- id: dsh-session-export
-  name: dsh-session-export
-  disabled: true
+- insert:
+    - id: dsh-session-export
+      name: dsh-session-export
 
-- id: dsh-mic-input
-  name: dsh-mic-input
-  disabled: true
+- insert:
+    - id: dsh-mic-input
+      name: dsh-mic-input
 
-- id: auto-continue
-  name: dsh-client-auto-continue
-  disabled: true
+- insert:
+    - id: auto-continue
+      name: dsh-client-auto-continue
 
-- id: ui-attention-badge
-  name: dsh-web-attention-badge
-  disabled: true
+- insert:
+    - id: ui-attention-badge
+      name: dsh-web-attention-badge
 
-# The hosted vision sidecar is installed with the desktop payload but remains
-# opt-in so the text-only free route stays the default. Enable this row in the
-# profile patch when image input is needed.
-- id: vision-sidecar
-  name: dsh-vision-sidecar
-  disabled: true
+- id: ui-model-selection
+  disabled: false
+
+- insert:
+    - id: vision-sidecar
+      name: dsh-vision-sidecar
+      disabled: true
 
 - id: llm-deepseek
   disabled: true

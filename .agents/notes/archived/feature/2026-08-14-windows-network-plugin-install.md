@@ -1,6 +1,7 @@
 # Agent Note: Windows network plugin installation
 
 Status: implemented
+Archived: 2026-08-26
 
 English | [中文](2026-08-14-windows-network-plugin-install.zh.md)
 

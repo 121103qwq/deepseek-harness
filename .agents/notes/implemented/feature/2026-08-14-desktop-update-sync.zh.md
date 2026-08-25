@@ -10,7 +10,7 @@ Windows 社区安装包需要一个统一入口，同时发现官方 Harness 项
 
 ## Decision
 
-两个安装模式都内置并默认启用 `deepseek-desktop-update-sync`。插件在启动后及每六小时检查 `deepseek-ai/deepseek-harness` 和 `121103qwq/deepseek-harness` 的最新 GitHub Release 元数据，并在 `/__deepseek_desktop/update-sync` 提供只读状态。安装程序允许用户关闭后台检查，或主动开启后台下载暂存。主动开启暂存后，只接受匹配的 DeepSeek Desktop 安装程序，大小限制为 512 MiB；存在 GitHub 提供的 SHA-256 摘要时会校验，并写入当前用户的更新目录；插件不会启动或安装暂存的可执行文件。
+安装程序内置并默认启用 `deepseek-desktop-update-sync`。插件在启动后及每六小时检查 `deepseek-ai/deepseek-harness` 和 `121103qwq/deepseek-harness` 的最新 GitHub Release 元数据，并在 `/__deepseek_desktop/update-sync` 提供只读状态。安装程序允许用户关闭后台检查，或主动开启后台下载暂存。主动开启暂存后，只接受 DeepSeek Desktop 离线安装程序，大小限制为 330 MiB；必须取得并校验 GitHub 提供的 SHA-256 摘要，然后才会写入当前用户的更新目录；插件不会启动或安装暂存的可执行文件。
 
 插件使用 Release 元数据，不会修改源代码检出，也不会静默改变当前 profile。如果社区仓库尚未发布 Release，会报告 `not_published`，因此可以在第一个桌面资产发布前继续检查该仓库。
 

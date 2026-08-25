@@ -1,6 +1,7 @@
 # Agent Note: Windows 网络插件安装
 
 Status: implemented
+Archived: 2026-08-26
 
 [English](2026-08-14-windows-network-plugin-install.md) | 中文
 

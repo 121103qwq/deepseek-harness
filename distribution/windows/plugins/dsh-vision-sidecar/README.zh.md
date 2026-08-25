@@ -1,6 +1,6 @@
 # dsh-vision-sidecar
 
-[English](README.md)
+[English](README.md) | 中文
 
 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的纯文本模型外挂托管视觉能力，同时保留 Desktop/profile 中配置的文本模型作为推理模型。图片先交给免费或自定义的 OpenAI 兼容视觉 API，VLM 实际生成并交给配置文本模型的描述会写入 DSH Session，之后按普通文本重放。
 
@@ -25,7 +25,7 @@
 2. 安装插件并启动 Web profile；默认 LLM7.io 视觉层不需要注册或视觉 Key。
 
 ```powershell
-dsh plugin --profile web add github:121103qwq/dsh-vision-sidecar#v0.1.3
+dsh plugin --profile web add github:121103qwq/dsh-vision-sidecar#v0.1.4
 dsh --profile web
 ```
 

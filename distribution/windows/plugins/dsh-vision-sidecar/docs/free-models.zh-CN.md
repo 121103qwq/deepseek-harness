@@ -38,7 +38,7 @@ visionApiKeyEnv: ''
 无需注册或申请 Key，直接安装插件即可。官方当前匿名限制为每日 500,000 tokens、每小时 60 次、每分钟 10 次、每秒 1 次；视觉请求格式见[图像识别文档](https://docs.llm7.io/guides/image-recognition)。
 
 ```powershell
-dsh plugin --profile web add github:121103qwq/dsh-vision-sidecar#v0.1.3
+dsh plugin --profile web add github:121103qwq/dsh-vision-sidecar#v0.1.4
 dsh --profile web
 ```
 
@@ -80,7 +80,7 @@ PowerShell：
 
 ```powershell
 $env:ZAI_API_KEY = '<你的智谱 Key>'
-dsh plugin --profile web add github:121103qwq/dsh-vision-sidecar#v0.1.3
+dsh plugin --profile web add github:121103qwq/dsh-vision-sidecar#v0.1.4
 dsh --profile web
 ```
 
@@ -88,7 +88,7 @@ POSIX shell：
 
 ```sh
 export ZAI_API_KEY='<你的智谱 Key>'
-dsh plugin --profile web add github:121103qwq/dsh-vision-sidecar#v0.1.3
+dsh plugin --profile web add github:121103qwq/dsh-vision-sidecar#v0.1.4
 dsh --profile web
 ```
 

@@ -10,7 +10,7 @@ The Windows community package needs one predictable place to discover updates fr
 
 ## Decision
 
-The installer bundles `deepseek-desktop-update-sync` in both setup modes and enables it by default. The plugin checks the latest GitHub Release metadata for `deepseek-ai/deepseek-harness` and `121103qwq/deepseek-harness` after startup and every six hours, then exposes read-only status at `/__deepseek_desktop/update-sync`. The installer lets the user disable background checks or opt into background download staging. Opt-in staging accepts only a matching DeepSeek Desktop setup asset, limits it to 512 MiB, verifies a GitHub-provided SHA-256 digest when present, and writes it under the current user's update directory; it never launches or installs the staged executable.
+The installer bundles `deepseek-desktop-update-sync` and enables it by default. The plugin checks the latest GitHub Release metadata for `deepseek-ai/deepseek-harness` and `121103qwq/deepseek-harness` after startup and every six hours, then exposes read-only status at `/__deepseek_desktop/update-sync`. The installer lets the user disable background checks or opt into background download staging. Opt-in staging accepts only the offline DeepSeek Desktop setup asset, limits it to 330 MiB, requires and verifies the GitHub-provided SHA-256 digest, and writes it under the current user's update directory; it never launches or installs the staged executable.
 
 The plugin uses release metadata rather than mutating the source checkout or silently changing the active profile. A missing Release is reported as `not_published`, so the community repository can be checked before it publishes its first desktop asset.
 

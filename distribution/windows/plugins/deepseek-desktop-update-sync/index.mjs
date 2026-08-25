@@ -17,7 +17,7 @@ export const inject = ['webServer']
 const PATH = '/__deepseek_desktop/update-sync'
 const CURRENT_VERSION = process.env.DEEPSEEK_DESKTOP_VERSION?.trim() || '0.1.0-rc.6'
 const DEFAULT_INTERVAL_HOURS = 6
-const MAX_ASSET_BYTES = 512 * 1024 * 1024
+const MAX_ASSET_BYTES = 330 * 1024 * 1024
 const SOURCES = Object.freeze([
   Object.freeze({
     id: 'official',
@@ -95,11 +95,12 @@ function safeFilename(value) {
 
 function pickInstallerAsset(assets) {
   if (!Array.isArray(assets)) return undefined
-  return assets.find((asset) => {
+  const installers = assets.filter((asset) => {
     const name = typeof asset?.name === 'string' ? asset.name : ''
-    return /deepseek[-_ ]desktop/i.test(name) && /setup\.exe$/i.test(name)
+    return /deepseek[-_ ]desktop/i.test(name) && /\.exe$/i.test(name)
       && typeof asset.browser_download_url === 'string'
   })
+  return installers.find((asset) => /offline/i.test(asset.name)) ?? installers[0]
 }
 
 async function readRelease(source) {
@@ -177,6 +178,7 @@ async function readLatestCommit(source) {
 async function stageAsset(sourceResult) {
   const asset = sourceResult.asset
   if (!asset) return { status: 'asset_unavailable' }
+  if (!asset.digest) return { status: 'digest_unavailable' }
   if (asset.size !== undefined && asset.size > MAX_ASSET_BYTES) return { status: 'asset_too_large' }
   const destination = path.join(updateDirectory(), asset.name)
   if (fs.existsSync(destination)) return { status: 'already_staged', filename: asset.name }
@@ -201,10 +203,7 @@ async function stageAsset(sourceResult) {
       return { status: 'digest_mismatch' }
     }
     fs.renameSync(temporary, destination)
-    return {
-      status: asset.digest ? 'staged_verified' : 'staged_unverified',
-      filename: asset.name,
-    }
+    return { status: 'staged_verified', filename: asset.name }
   } catch {
     fs.rmSync(temporary, { force: true })
     return { status: 'download_error' }

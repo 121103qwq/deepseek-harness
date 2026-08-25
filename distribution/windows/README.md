@@ -2,45 +2,50 @@
 
 English | [中文](README.zh.md)
 
-`scripts/build-windows-installer.ps1` produces two user-scope Windows x64 setup executables for DeepSeek Desktop, a community package built from the published `@deepseek-ai/dsh` package.
+This directory owns the unofficial **DeepSeek Desktop** Windows x64 distribution. `scripts/build-windows-installer.ps1` produces one self-contained, current-user installer named `Deepseek-desktop-offline.exe`; no online or mirror-downloading setup is published.
 
-Both setups bundle Node.js 22.19.0 after checking its SHA-256, open the local Harness UI inside a `DeepSeek Desktop` WebView window, and add one Start menu shortcut. They do not request administrator permissions or change the system `PATH`.
+The installer bundles Node.js 24.19.0, `@deepseek-ai/dsh` 0.1.1-rc.2, WebView2 bindings, the complete production dependency closure, and every listed desktop plugin. It installs under `%LOCALAPPDATA%\Programs\DeepSeek Desktop` by default, registers the application and uninstaller in HKCU, creates Start menu shortcuts, and optionally creates a desktop shortcut. It does not request administrator rights, change the system `PATH`, open PowerShell, or defer dependency work to first launch.
 
-The payload also includes the optional `DSH luncher.exe` manager. It keeps DSh installations and source workspaces isolated, gives each instance its own DSh Home, and opens selected chats in separate WebView windows. The manager is a community launcher, not an official DeepSeek application.
+Installation displays an explicit community-distribution notice, a destination page, selectable components, and native installation progress. Before committing configuration, the hidden configurator acquires the same per-`DSH_HOME` lock used by DSH Launcher, applies provider and plugin changes as one rollback-capable update, starts the bundled Web profile, and checks the plugin-helper inventory. A failed check restores the previous profile and settings instead of leaving a partly configured installation.
 
-The offline setup includes the complete published Harness dependency closure. The online setup downloads that same fixed closure through `registry.npmmirror.com` while installing, then falls back to `registry.npmjs.org` if the mirror is unavailable. Application data stays in `%LOCALAPPDATA%\DeepSeek Harness Data`; the included uninstaller removes the program files and shortcut while preserving that data directory.
+DeepSeek Desktop hosts the local Harness UI in an embedded WebView rather than opening a browser. Its Node process uses a loopback-only port, inherits standard `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment settings, and is terminated with the desktop process. The first close asks whether future closes should minimize to the system tray or exit directly. Uninstall removes program files, shortcuts, App Paths, and uninstall registration while preserving `%LOCALAPPDATA%\DeepSeek Harness Data`.
 
-Each opening begins with a clear choice: **Free model (Groq Free Plan)** or **DeepSeek API**. The default Groq route preconfigures GPT-OSS 20B, GPT-OSS 120B, and Qwen3.6 27B in the embedded Harness model picker; it does not use a local model. The app opens directly to the selected route rather than an API-key screen. A Groq key is required only when the user configures that provider in the embedded Models settings; choosing DeepSeek API uses the existing embedded DeepSeek-key setup.
+## Models
 
-The installer shows a `Choose plugins...` button immediately after the non-official-distribution notice; the checked state is written to the current user's Web profile. It also offers two update choices: background checks are enabled by default, while background update downloads are opt-in and never install an executable automatically. The mandatory `deepseek-desktop-plugin-helper` and `deepseek-desktop-update-sync` are included in both setup modes. The update plugin checks the official upstream repository and this community repository and exposes read-only status at `/__deepseek_desktop/update-sync`. The online setup downloads the selected network plugins during installation; the offline setup leaves those rows disabled. This source-only change does not rebuild a setup executable:
+The default route is **Kilo Auto Free**, an anonymous hosted model selected automatically without a login or API key. **LLM7** is installed as an anonymous fallback for transient failures before the first model output. The installer can instead select the built-in **DeepSeek API** route, which remains disabled until the user supplies their own key in Harness settings.
 
-- `deepseek-desktop-free-fallback` switches to a second free model only when the primary route fails before its first output with a transient rate-limit, timeout, server, empty-response, or transport failure. It never changes routes after output has started.
-- `deepseek-desktop-vision-preflight` checks explicit model modality metadata before sending an image and returns a readable error for models that declare no image support.
-- `deepseek-desktop-web-diagnostics` exposes `http://127.0.0.1:<port>/__deepseek_desktop/diagnostics` so WebView loopback failures can be separated from model failures.
-- `deepseek-desktop-update-sync` checks both GitHub release channels in the background by default. Enabling the installer’s optional background-download switch stages a matching setup executable under the user profile for later confirmation; it never launches or silently installs that file.
-- `dsh-vision-sidecar` is captured into the payload as an npm package but stays disabled by default, preserving the text-only free route. Enable its profile row when image input is needed; the default hosted vision route is LLM7.io's anonymous endpoint.
-- `dsh-session-export` downloads a pinned prebuilt GitHub package in the online setup and exports sessions as Markdown or JSON.
-- `dsh-mic-input` downloads a pinned prebuilt GitHub package in the online setup and adds browser speech input with a `zh-CN` option.
-- `dsh-client-auto-continue` and `dsh-web-attention-badge` download exact npm versions in the online setup; both remain selectable in the installer.
+No credential is embedded in the installer. Kilo and LLM7 are remote services, not local models; their availability, limits, underlying models, and retention policies are controlled by their operators. The installer warns users not to send sensitive data through anonymous free routes.
 
-The reasoning-effort slider is an in-tree UI improvement rather than a separately optional plugin, so it ships with the desktop UI when that bundle is rebuilt.
+## Plugins
 
-The plugins contain no API key and are not official DeepSeek components. Network plugin sources are pinned in `scripts/build-windows-installer.ps1`; the installer uses `--ignore-scripts` so downloaded packages cannot run npm lifecycle scripts.
+All plugin files are present before the installer starts. Every component except the experimental vision sidecar is selected by default; clearing a component disables its profile row without downloading or deleting files.
+
+- `deepseek-desktop-plugin-helper` reports the installed plugin ids and enabled state at the loopback-only `/__deepseek_desktop/plugin-helper` endpoint and is always enabled.
+- `deepseek-desktop-update-sync` checks official Harness and community GitHub Releases every six hours by default. Background download staging is opt-in, accepts only the offline desktop asset up to 330 MiB with a GitHub digest, and never launches or installs it.
+- `deepseek-desktop-free-fallback` changes from Kilo to LLM7 only when a transient failure occurs before the first output.
+- `deepseek-desktop-vision-preflight` rejects unsupported image input with a readable explanation.
+- `deepseek-desktop-web-diagnostics` exposes loopback-only runtime and plugin diagnostics.
+- `dsh-session-export` exports sessions as Markdown or JSON.
+- `dsh-mic-input` adds WebView speech input with Chinese selected by default.
+- `dsh-client-auto-continue` resumes eligible interrupted requests and includes an RC2 keyed-slot compatibility patch in the assembled payload.
+- `dsh-web-attention-badge` adds a window-level attention indicator.
+- `@deepseek-ai/dsh-client-ui-model-selection` exposes supported reasoning-effort choices in the model picker.
+- `dsh-vision-sidecar` provides an experimental hosted vision route and stays disabled by default.
+
+Third-party packages are pinned in `scripts/build-windows-installer.ps1`. Assembly uses `--ignore-scripts`, so those packages cannot execute npm lifecycle scripts during the build or user installation.
 
 ## Build
 
-Run this from a PowerShell session in the repository root:
+Run from a Windows PowerShell session in the repository root after the repository packages have been built:
 
 ```powershell
 .\scripts\build-windows-installer.ps1
 ```
 
-The `Online` setup and `Offline` setup are written to `distribution/windows/dist/`. The builder creates a fresh directory under `distribution/windows/build/` and refuses to overwrite an existing release asset. The builder verifies the bundled Node.js archive internally but does not create checksum sidecar files for release upload.
+The builder downloads only pinned build inputs, verifies the Node.js and WebView2 package SHA-256 values, assembles a hoisted production dependency tree, rebuilds the trusted `node-pty` native dependency, compiles the WinForms hosts, and writes `distribution/windows/dist/Deepseek-desktop-offline.exe`. It refuses to overwrite an existing release asset and does not create a checksum sidecar for publication.
 
-## Verification
+## Release verification
 
-Before publishing, run both setup executables in a Windows user session. After installation, start **DeepSeek Desktop** from the Start menu and confirm that its embedded window loads the local UI.
+Before publishing, install the generated executable into a clean current-user directory, confirm the configurator log reports a successful plugin-chain check, launch the embedded UI, inspect the Models and Plugins pages, and exercise the chosen provider. Then uninstall, confirm registration and program files are removed while `DSH_HOME` remains, and reinstall once more.
 
-The installer is an independent community distribution. It includes no API key and does not claim to be an official DeepSeek release.
-
-The same payload also installs **DSh Manager**, a PCL2-style Windows launcher for the DeepSeek Harness ecosystem. The user-facing manager is a single `DSH luncher.exe`; its server, UI assets, and Node runtime are embedded and extracted automatically at startup. It can register installed or source instances, launch each instance in an independent chat WebView2 window, manage plugins and Skills, discover official `@deepseek-ai/dsh-*` packages and GitHub repositories marked with the `dsh-plugin` topic, and keep conversation sync separate from per-instance extensions and settings. The manager shortcut is added to the same Start menu folder as DeepSeek Desktop. Its public repository is [DSH-Launcher](https://github.com/121103qwq/DSH-Launcher).
+The current community executable is not code-signed. Windows Defender or SmartScreen may therefore show an unknown-publisher warning; do not bypass an antivirus detection, and publish the exact locally verified asset only through this repository's GitHub Release.
