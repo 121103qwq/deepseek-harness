@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-08-26-windows-offline-desktop-installer.md
-2026-08-26-windows-offline-desktop-installer.md: 4b94262086f000e0e2557bec758dc44dbd5a0d43
-2026-08-26-windows-offline-desktop-installer.zh.md: 4644ae87ddfdd9c805b7a7a62a99a7737b8ba0a3
+2026-08-26-windows-offline-desktop-installer.md: bc3deff343b7785443f912ffdbab9aee6f529221
+2026-08-26-windows-offline-desktop-installer.zh.md: e61bf7588e93bdcc6f9ec0f700e935b19f0811cd

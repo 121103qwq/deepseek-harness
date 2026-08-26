@@ -10,6 +10,7 @@ and a real local plugin-chain startup probe, so first launch has no setup work.
 [CmdletBinding()]
 param(
   [string]$OutputDirectory,
+  [string]$LauncherExecutable = $env:DSH_LAUNCHER_EXE,
   [string]$NsisPath = 'D:\DevTools\Scoop\apps\nsis-portable\3.12\nsis-3.12\Bin\makensis.exe',
   [switch]$KeepWork
 )
@@ -17,7 +18,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
-$desktopVersion = '0.2.0'
+$desktopVersion = '0.2.1'
 $dshVersion = '0.1.1-rc.2'
 $nodeVersion = '24.19.0'
 $nodeArchiveName = "node-v$nodeVersion-win-x64.zip"
@@ -40,6 +41,7 @@ $runtimeRoot = Join-Path $payloadRoot 'runtime'
 $appRoot = Join-Path $payloadRoot 'app'
 $pluginRoot = Join-Path $payloadRoot 'plugins'
 $defaultsRoot = Join-Path $payloadRoot 'defaults'
+$launcherRoot = Join-Path $payloadRoot 'launcher'
 $webViewExtract = Join-Path $workRoot 'webview2'
 $nodeArchive = Join-Path $cacheRoot $nodeArchiveName
 $webViewPackage = Join-Path $cacheRoot $webViewPackageName
@@ -88,6 +90,24 @@ function Move-DirectoryToRecycleBin([string]$Path) {
 
 function Get-Sha256([string]$Path) {
   return (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
+}
+
+function Assert-X64WindowsExecutable([string]$Path) {
+  $stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+  $reader = New-Object IO.BinaryReader($stream)
+  try {
+    if ($reader.ReadUInt16() -ne 0x5A4D) { throw "Launcher executable is missing the MZ header: $Path" }
+    $stream.Position = 0x3C
+    $peOffset = $reader.ReadInt32()
+    if ($peOffset -lt 0x40 -or $peOffset -gt ($stream.Length - 6)) {
+      throw "Launcher executable has an invalid PE offset: $Path"
+    }
+    $stream.Position = $peOffset
+    if ($reader.ReadUInt32() -ne 0x00004550) { throw "Launcher executable is missing the PE header: $Path" }
+    if ($reader.ReadUInt16() -ne 0x8664) { throw "Launcher executable is not Windows x64: $Path" }
+  } finally {
+    $reader.Dispose()
+  }
 }
 
 function Get-CachedDownload([string]$Path, [string]$Url, [string]$ExpectedSha256) {
@@ -417,8 +437,21 @@ try {
   foreach ($requiredTool in @($compiler, $NsisPath, 'D:\DevTools\Scoop\shims\7z.exe')) {
     if (!(Test-Path -LiteralPath $requiredTool -PathType Leaf)) { throw "Required build tool is missing: $requiredTool" }
   }
+  if ([string]::IsNullOrWhiteSpace($LauncherExecutable)) {
+    throw 'LauncherExecutable is required. Build DSH Launcher as a Windows x64 self-contained single file and pass its path.'
+  }
+  $launcherSourcePath = [IO.Path]::GetFullPath($LauncherExecutable)
+  if (!(Test-Path -LiteralPath $launcherSourcePath -PathType Leaf)) {
+    throw "DSH Launcher executable is missing: $launcherSourcePath"
+  }
+  Assert-X64WindowsExecutable $launcherSourcePath
+  $launcherItem = Get-Item -LiteralPath $launcherSourcePath
+  if ($launcherItem.Length -gt 200MB) { throw "DSH Launcher exceeds the 200 MB component limit: $($launcherItem.Length) bytes" }
+  $launcherVersion = [string]$launcherItem.VersionInfo.FileVersion
+  if ([string]::IsNullOrWhiteSpace($launcherVersion)) { throw "DSH Launcher has no file version: $launcherSourcePath" }
+  $launcherSha256 = Get-Sha256 $launcherSourcePath
   if (Test-Path -LiteralPath $installerPath) { throw "Refusing to overwrite an existing installer: $installerPath" }
-  New-Item -ItemType Directory -Force -Path $outputPath, $cacheRoot, $workRoot, $payloadRoot, $runtimeRoot, $appRoot, $pluginRoot, $defaultsRoot | Out-Null
+  New-Item -ItemType Directory -Force -Path $outputPath, $cacheRoot, $workRoot, $payloadRoot, $runtimeRoot, $appRoot, $pluginRoot, $defaultsRoot, $launcherRoot | Out-Null
 
   Write-Host "Preparing Node.js $nodeVersion and WebView2 $webViewPackageVersion..."
   Get-CachedDownload $nodeArchive $nodeUrl $nodeSha256
@@ -447,6 +480,7 @@ try {
   Copy-Item -LiteralPath (Join-Path $distributionRoot 'README.zh.md') -Destination (Join-Path $payloadRoot 'README.zh.md')
   Copy-Item -LiteralPath (Join-Path $repoRoot 'LICENSE') -Destination $payloadRoot
   Copy-Item -LiteralPath (Join-Path $distributionRoot 'templates\DeepSeek-Black-Logo.png') -Destination $payloadRoot
+  Copy-Item -LiteralPath $launcherSourcePath -Destination (Join-Path $launcherRoot 'DSH Launcher.exe')
 
   $iconPath = Join-Path $payloadRoot 'DeepSeek Desktop.ico'
   New-MultiSizeIcon (Join-Path $distributionRoot 'templates\DeepSeek-Black-Logo.png') $iconPath
@@ -455,12 +489,15 @@ try {
   Write-Host "Installing @deepseek-ai/dsh@$dshVersion and every plugin into the offline payload..."
   Install-OfflineDependencies
 
-  Write-Utf8NoBom (Join-Path $payloadRoot 'VERSION.txt') "DeepSeek Desktop $desktopVersion`r`nDeepSeek Harness $dshVersion`r`nBundled Node.js $nodeVersion`r`n"
+  Write-Utf8NoBom (Join-Path $payloadRoot 'VERSION.txt') "DeepSeek Desktop $desktopVersion`r`nDeepSeek Harness $dshVersion`r`nBundled Node.js $nodeVersion`r`nOptional DSH Launcher $launcherVersion`r`n"
   $manifest = @{
     product = 'DeepSeek Desktop'
     productVersion = $desktopVersion
     dshVersion = $dshVersion
     nodeVersion = $nodeVersion
+    launcherVersion = $launcherVersion
+    launcherSize = $launcherItem.Length
+    launcherSha256 = $launcherSha256
     architecture = 'x64'
     distribution = 'community'
     official = $false
@@ -476,6 +513,7 @@ try {
     "/DPRODUCT_VERSION=$desktopVersion",
     "/DFILE_VERSION=$desktopVersion.0",
     "/DDSH_VERSION=$dshVersion",
+    "/DLAUNCHER_VERSION=$launcherVersion",
     "/DPAYLOAD_ROOT=$payloadRoot",
     "/DOUTPUT_FILE=$installerPath",
     "/DICON_FILE=$iconPath",

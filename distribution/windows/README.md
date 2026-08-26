@@ -6,6 +6,8 @@ This directory owns the unofficial **DeepSeek Desktop** Windows x64 distribution
 
 The installer bundles Node.js 24.19.0, `@deepseek-ai/dsh` 0.1.1-rc.2, WebView2 bindings, the complete production dependency closure, and every listed desktop plugin. It installs under `%LOCALAPPDATA%\Programs\DeepSeek Desktop` by default, registers the application and uninstaller in HKCU, creates Start menu shortcuts, and optionally creates a desktop shortcut. It does not request administrator rights, change the system `PATH`, open PowerShell, or defer dependency work to first launch.
 
+The component page also offers **DSH Launcher** as an independently runnable manager. When selected, its validated Windows x64 single-file executable is installed under the Desktop application directory and receives Start menu and desktop shortcuts. Clearing the component leaves Launcher uninstalled; uninstalling DeepSeek Desktop removes only the bundled copy and its shortcuts. Launcher keeps its own data, release lifecycle, and application identity.
+
 Installation displays an explicit community-distribution notice, a destination page, selectable components, and native installation progress. Before committing configuration, the hidden configurator acquires the same per-`DSH_HOME` lock used by DSH Launcher, applies provider and plugin changes as one rollback-capable update, starts the bundled Web profile, and checks the plugin-helper inventory. A failed check restores the previous profile and settings instead of leaving a partly configured installation.
 
 DeepSeek Desktop hosts the local Harness UI in an embedded WebView rather than opening a browser. Its Node process uses a loopback-only port, inherits standard `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment settings, and is terminated with the desktop process. The first close asks whether future closes should minimize to the system tray or exit directly. Uninstall removes program files, shortcuts, App Paths, and uninstall registration while preserving `%LOCALAPPDATA%\DeepSeek Harness Data`.
@@ -39,13 +41,14 @@ Third-party packages are pinned in `scripts/build-windows-installer.ps1`. Assemb
 Run from a Windows PowerShell session in the repository root after the repository packages have been built:
 
 ```powershell
-.\scripts\build-windows-installer.ps1
+.\scripts\build-windows-installer.ps1 `
+  -LauncherExecutable 'C:\path\to\DSH Launcher.exe'
 ```
 
-The builder downloads only pinned build inputs, verifies the Node.js and WebView2 package SHA-256 values, assembles a hoisted production dependency tree, rebuilds the trusted `node-pty` native dependency, compiles the WinForms hosts, and writes `distribution/windows/dist/Deepseek-desktop-offline.exe`. It refuses to overwrite an existing release asset and does not create a checksum sidecar for publication.
+The supplied Launcher must be a versioned Windows x64 PE executable built as a self-contained single file. The builder validates its format, records its version, size, and digest in the installed manifest, downloads only pinned Harness inputs, verifies the Node.js and WebView2 package digests, assembles a hoisted production dependency tree, rebuilds the trusted `node-pty` native dependency, compiles the WinForms hosts, and writes `distribution/windows/dist/Deepseek-desktop-offline.exe`. It refuses to overwrite an existing release asset and does not create a checksum sidecar for publication.
 
 ## Release verification
 
-Before publishing, install the generated executable into a clean current-user directory, confirm the configurator log reports a successful plugin-chain check, launch the embedded UI, inspect the Models and Plugins pages, and exercise the chosen provider. Then uninstall, confirm registration and program files are removed while `DSH_HOME` remains, and reinstall once more.
+Before publishing, install the generated executable into a clean current-user directory, confirm the configurator log reports a successful plugin-chain check, launch the embedded UI, inspect the Models and Plugins pages, exercise the chosen provider, and launch the bundled DSH Launcher from its desktop shortcut. Then uninstall, confirm both applications, shortcuts, and registration are removed while their user data remains, reinstall without the Launcher component, and confirm no Launcher file or shortcut appears.
 
 The current community executable is not code-signed. Windows Defender or SmartScreen may therefore show an unknown-publisher warning; do not bypass an antivirus detection, and publish the exact locally verified asset only through this repository's GitHub Release.

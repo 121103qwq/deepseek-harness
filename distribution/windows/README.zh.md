@@ -6,6 +6,8 @@
 
 安装包内置 Node.js 24.19.0、`@deepseek-ai/dsh` 0.1.1-rc.2、WebView2 绑定、完整生产依赖闭包以及下文列出的全部桌面插件。默认安装到 `%LOCALAPPDATA%\Programs\DeepSeek Desktop`，在 HKCU 中注册应用和卸载程序，创建开始菜单快捷方式，并可选创建桌面快捷方式。它不请求管理员权限，不修改系统 `PATH`，不打开 PowerShell，也不会把依赖工作留到第一次启动。
 
+组件页还提供可以独立运行的 **DSH Launcher** 管理器。选中后，安装程序会把经过校验的 Windows x64 单文件可执行程序安装到 Desktop 应用目录，并创建开始菜单和桌面快捷方式。取消勾选则不会安装 Launcher；卸载 DeepSeek Desktop 时只移除随附副本及其快捷方式。Launcher 保持独立的数据目录、发布周期和应用身份。
+
 安装过程会显示明确的社区发行声明、目标目录页、可选组件和原生安装进度。隐藏配置器会在提交配置前获取与 DSH Launcher 相同的每 `DSH_HOME` 锁，将提供方和插件变更作为一次可回档更新执行，然后启动内置 Web profile 并检查插件 helper 清单。检查失败时会恢复原 profile 和设置，不留下部分配置的安装。
 
 DeepSeek Desktop 使用内置 WebView 显示本地 Harness UI，不打开浏览器。Node 进程使用仅回环可访问的动态端口，继承标准 `HTTP_PROXY`、`HTTPS_PROXY` 和 `NO_PROXY` 环境设置，并会随桌面进程一起结束。第一次关闭会询问以后是最小化到系统托盘，还是直接退出。卸载会删除程序文件、快捷方式、App Paths 和卸载注册项，同时保留 `%LOCALAPPDATA%\DeepSeek Harness Data`。
@@ -39,13 +41,14 @@ DeepSeek Desktop 使用内置 WebView 显示本地 Harness UI，不打开浏览�
 在仓库包已经构建的前提下，从仓库根目录的 Windows PowerShell 会话运行：
 
 ```powershell
-.\scripts\build-windows-installer.ps1
+.\scripts\build-windows-installer.ps1 `
+  -LauncherExecutable 'C:\path\to\DSH Launcher.exe'
 ```
 
-构建器只下载固定的构建输入，验证 Node.js 和 WebView2 包的 SHA-256，组装提升到顶层的生产依赖树，重新构建可信的 `node-pty` 原生依赖，编译 WinForms 宿主，然后写入 `distribution/windows/dist/Deepseek-desktop-offline.exe`。它拒绝覆盖已存在的发布产物，也不会为发布生成摘要伴随文件。
+传入的 Launcher 必须是带版本信息、以自包含单文件形式构建的 Windows x64 PE 可执行程序。构建器会校验其格式，在已安装清单中记录版本、大小和摘要，然后只下载固定的 Harness 构建输入，验证 Node.js 和 WebView2 包摘要，组装提升到顶层的生产依赖树，重新构建可信的 `node-pty` 原生依赖，编译 WinForms 宿主，并写入 `distribution/windows/dist/Deepseek-desktop-offline.exe`。它拒绝覆盖已存在的发布产物，也不会为发布生成摘要伴随文件。
 
 ## 发布验证
 
-发布前，将生成的可执行文件安装到全新的当前用户目录，确认配置器日志报告插件链检查成功，启动内置 UI，检查“模型”和“插件”页，并实际请求选定的提供方。然后卸载，确认注册项和程序文件已清除且 `DSH_HOME` 仍保留，再重新安装一次。
+发布前，将生成的可执行文件安装到全新的当前用户目录，确认配置器日志报告插件链检查成功，启动内置 UI，检查“模型”和“插件”页，实际请求选定的提供方，并从桌面快捷方式启动随附 DSH Launcher。然后卸载，确认两个应用、快捷方式和注册项都已清除而用户数据仍保留；再取消 Launcher 组件重新安装，确认没有出现 Launcher 文件或快捷方式。
 
 当前社区可执行文件未进行代码签名，因此 Windows Defender 或 SmartScreen 可能显示未知发布者警告。不要绕过杀毒软件的检出；只能通过本仓库的 GitHub Release 发布经本地验证的同一份产物。

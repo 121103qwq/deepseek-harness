@@ -6,6 +6,7 @@ SetCompressorDictSize 64
 CRCCheck force
 
 !include "MUI2.nsh"
+!include "FileFunc.nsh"
 !include "LogicLib.nsh"
 !include "Sections.nsh"
 !include "nsDialogs.nsh"
@@ -18,6 +19,9 @@ CRCCheck force
 !endif
 !ifndef DSH_VERSION
   !error "DSH_VERSION is required"
+!endif
+!ifndef LAUNCHER_VERSION
+  !error "LAUNCHER_VERSION is required"
 !endif
 !ifndef PAYLOAD_ROOT
   !error "PAYLOAD_ROOT is required"
@@ -151,7 +155,12 @@ Section "DeepSeek Desktop 核心（必需）" SecCore
   SectionIn RO
   SetShellVarContext current
   SetOutPath "$INSTDIR"
-  File /r /x "*.d.ts" /x "*.map" "${PAYLOAD_ROOT}\*.*"
+  File /r /x "*.d.ts" /x "*.map" /x "launcher" "${PAYLOAD_ROOT}\*.*"
+SectionEnd
+
+Section "DSH Launcher ${LAUNCHER_VERSION}（桌面快捷方式）" SecLauncher
+  SetOutPath "$INSTDIR\Launcher"
+  File "${PAYLOAD_ROOT}\launcher\DSH Launcher.exe"
 SectionEnd
 
 Section "免费模型故障切换" SecFallback
@@ -187,6 +196,12 @@ Function .onInit
   StrCpy $AutoDownload "false"
   StrCpy $DesktopShortcut "true"
   !insertmacro UnselectSection ${SecVisionSidecar}
+  ${GetParameters} $0
+  ClearErrors
+  ${GetOptions} $0 "/NO-LAUNCHER" $1
+  ${IfNot} ${Errors}
+    !insertmacro UnselectSection ${SecLauncher}
+  ${EndIf}
   IfSilent nonOfficialNoticeDone
   MessageBox MB_OK|MB_ICONINFORMATION "重要说明：本软件是社区维护的 DeepSeek Harness 桌面封装，不是 DeepSeek 官方产品，也不代表 DeepSeek。安装包不包含任何 API Key。"
   nonOfficialNoticeDone:
@@ -236,6 +251,13 @@ Section -Finalize SecFinalize
   CreateDirectory "$SMPROGRAMS\DeepSeek Desktop"
   CreateShortcut "$SMPROGRAMS\DeepSeek Desktop\DeepSeek Desktop.lnk" "$INSTDIR\DeepSeek Desktop.exe" "" "$INSTDIR\DeepSeek Desktop.exe" 0 SW_SHOWNORMAL "" "DeepSeek Desktop"
   CreateShortcut "$SMPROGRAMS\DeepSeek Desktop\卸载 DeepSeek Desktop.lnk" "$INSTDIR\卸载 DeepSeek Desktop.exe"
+  ${If} ${SectionIsSelected} ${SecLauncher}
+    CreateShortcut "$SMPROGRAMS\DeepSeek Desktop\DSH Launcher.lnk" "$INSTDIR\Launcher\DSH Launcher.exe" "" "$INSTDIR\Launcher\DSH Launcher.exe" 0 SW_SHOWNORMAL "" "DSH Launcher"
+    CreateShortcut "$DESKTOP\DSH Launcher.lnk" "$INSTDIR\Launcher\DSH Launcher.exe" "" "$INSTDIR\Launcher\DSH Launcher.exe" 0 SW_SHOWNORMAL "" "DSH Launcher"
+  ${Else}
+    Delete "$DESKTOP\DSH Launcher.lnk"
+    RMDir /r "$INSTDIR\Launcher"
+  ${EndIf}
   ${If} $DesktopShortcut == "true"
     CreateShortcut "$DESKTOP\DeepSeek Desktop.lnk" "$INSTDIR\DeepSeek Desktop.exe" "" "$INSTDIR\DeepSeek Desktop.exe" 0 SW_SHOWNORMAL "" "DeepSeek Desktop"
   ${Else}
@@ -258,6 +280,7 @@ SectionEnd
 
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
   !insertmacro MUI_DESCRIPTION_TEXT ${SecCore} "内置 Node.js 和 Harness ${DSH_VERSION}、桌面 WebView、插件助手和更新检查。"
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecLauncher} "安装独立的 DSH Launcher 管理器，并在桌面和开始菜单创建快捷方式；可以取消勾选。"
   !insertmacro MUI_DESCRIPTION_TEXT ${SecFallback} "Kilo 首次失败时切换到 LLM7 匿名免费路线；不会处理已经输出内容的请求。"
   !insertmacro MUI_DESCRIPTION_TEXT ${SecVisionPreflight} "在发送前检查图片能力并给出明确提示。"
   !insertmacro MUI_DESCRIPTION_TEXT ${SecWebDiagnostics} "提供本地网页服务和插件状态诊断。"
@@ -276,6 +299,7 @@ Section "Uninstall"
   Abort
   uninstallConfirmed:
   Delete "$DESKTOP\DeepSeek Desktop.lnk"
+  Delete "$DESKTOP\DSH Launcher.lnk"
   RMDir /r "$SMPROGRAMS\DeepSeek Desktop"
   DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\DeepSeek Desktop"
   DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\App Paths\DeepSeek Desktop.exe"
